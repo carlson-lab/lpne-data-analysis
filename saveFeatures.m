@@ -56,7 +56,7 @@ function saveFeatures(saveFile, options)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-FEATURES_VERSION = '1.1';
+FEATURES_VERSION = 'saveFeatures_1.2';
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
     
 if nargin < 2
@@ -103,7 +103,7 @@ if any(ismember('power',options.featureList))
     % area and then by frequency
 
     % Estimate power using Welch's power spectrum estimator
-    power = pwelch(xReshaped, windowSize,[], f,fs, 'power');
+    power = pwelch(xReshaped, windowSize,[], f,fs, 'psd');
     % Reshape to MxNxP matrix where M is frequency, N is brain area, and P is time window 
     power = reshape(power, [], C, W);
     power = single(abs(power));
@@ -191,7 +191,7 @@ end
 %% Take Fourier transform of data
 if any(ismember('fourier', options.featureList))
     Ns = ceil(N/2);
-    xFft = 1/sqrt(N)*fft(double(X));
+    xFft = (1/N)*fft(double(X));
     xFft = 2*(xFft(2:Ns+1,:,:));
     
     labels.fftVersion = FEATURES_VERSION;

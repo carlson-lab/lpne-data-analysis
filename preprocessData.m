@@ -59,7 +59,7 @@ function preprocessData(saveFile,dataOpts)
 %           automatic detection of thresholds: 'MAD' indicates to used
 %           median absolute deviation method to detect outlier points;
 %           'SD' indicates to use standard deviation.
-PREPROCESS_VERSION = '1.0';
+PREPROCESS_VERSION = 'preprocessData_1.0';
 
     % exclude saturated data and condense multiple channels from the same brain
     % region to one signal
@@ -189,6 +189,8 @@ PREPROCESS_VERSION = '1.0';
         xFft = 1/sqrt(ptsPerWindow)*fft(X);
         xFft = 2*(xFft(2:Ns+1,:,:));
         save(saveFile,'xFft','-append');
+        
+        labels.fftVersion = PREPROCESS_VERSION;
     end
 
     % save final data to file
@@ -201,7 +203,7 @@ end
 function dataOpts=fillDefaultDopts(dataOpts, labels)
 %fill in dataOpts with default data options:
     if ~isfield(dataOpts,'subSampFact'), dataOpts.subSampFact = 2; end 
-    if ~isfield(dataOpts,'normWindows'), dataOpts.normWindows = 'whole'; end
+    if ~isfield(dataOpts,'normWindows'), dataOpts.normWindows = 'day'; end
     if ~isfield(dataOpts,'transform'), dataOpts.transform = 0; end
     if ~isfield(dataOpts,'satThresh'), dataOpts.satThresh = 'MAD'; end
     

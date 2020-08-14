@@ -70,6 +70,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
     # only take the data from frequency values within bounds given
     (fLow, fHigh) = f_bounds
     fIdx = [k for (k, f) in enumerate(labels['f']) if fLow <= f <= fHigh]
+    labels['f'] = np.asarray(labels['f'])[fIdx]
 
     # convert to array, invert axes, take power, coherency, gc data at
     # indices specified from frequency
@@ -173,14 +174,17 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
 
 
         if ft == 'xFft':
-            labels['s'] = np.asarray(labels['s'])[fIdx]
+            # account for double precision roundoff error
+            tol = 1e-6
+            sIdx = [k for (k, s) in enumerate(labels['s']) if (fLow-tol) <= s <= (fHigh+tol)]
+            labels['s'] = np.asarray(labels['s'])[sIdx]
 
-            W,S = features[k].shape
-            features[k] = np.zeros((W,1,S), dtype=np.complex64)
-            for w in range(W):
-                for s in range(S):
-                    a,b = features[k][w,s]
-                    features[k][w,0,s] = a + 1j*b
+            xArray = np.asarray(features[k])
+            W,C,S = xArray.shape
+
+            features[k] = np.array([[[xArray[w,c,s][0] + 1j*xArray[w,c,s][1]
+                                      for s in sIdx] for c in range(C)]
+                                    for w in range(W)], dtype=np.complex64)
 
             if 'fftVersion' in labels.keys():
                 f_version = labels['fftVersion']
