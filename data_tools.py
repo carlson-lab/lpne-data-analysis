@@ -300,9 +300,9 @@ def get_weights(group_list, subset_idx=None):
     if subset_idx is None:
         subset_idx = np.full(len(group_list[0]), True)
     else:
-        susbet_idx = np.array(subset_idx, dtype=np.bool_)
+        subset_idx = np.array(subset_idx, dtype=np.bool_)
 
-    group_labels = group_list[0]
+    group_labels = np.asarray(group_list[0])
     these_group_labels = group_labels[subset_idx]
     group_names = set(these_group_labels)
 
