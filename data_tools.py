@@ -155,6 +155,24 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
                 print('Granger features calculated using unknown version')
 
 
+        if ft == 'causality':
+            acFIdx = [k+1 for k in fIdx]
+
+            acArray = np.asarray(features[k])
+            acArray = acArray[:, acFIdx, :]
+            acArray = np.minimum(acArray, 10)
+            features[k] = np.transpose(acArray, (1,2,0))
+
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a*b, c, order='F').T
+            if 'causFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                gf = np.asarray(labels['causFeatures'])
+                gf = gf[:, acFIdx].T
+                labels['causFeatures'] = gf.reshape(a*b, order='F')
+
+
         if ft == 'instant':
             gcFIdx = [k+1 for k in fIdx]
 
