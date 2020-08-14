@@ -211,5 +211,5 @@ function opts = fillDefaultOpts(opts)
         opts.featureList = {'power','coherence','granger'};
     end
     if ~isfield(opts,'parCores'), opts.parCores = 0; end
-    if ~isfield(opts,'mvgcFolder'), opts.mvgcFolder = '~/lpn-data-analysis/mvgc'; end
+    if ~isfield(opts,'mvgcFolder'), opts.mvgcFolder = '~/lpne-data-analysis/mvgc'; end
 end
