@@ -154,7 +154,6 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
             else:
                 print('Granger features calculated using unknown version')
 
-
         if ft == 'causality':
             acFIdx = [k+1 for k in fIdx]
 
@@ -165,6 +164,10 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
 
             a,b,c = features[k].shape
             features[k] = features[k].reshape(a*b, c, order='F').T
+
+            # put on same scale as power features
+            features[k] = features[k] / labels['fs']
+            
             if 'causFeatures' in labels.keys():
                 # reshape corresponding array of feature labels
                 # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
