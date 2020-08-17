@@ -300,11 +300,15 @@ def combine_data(*args):
         return tuple(features)
 
 
-def get_X(weights, featureList):
-    normFeat = [f / np.sqrt(np.mean(f**2)) for f in featureList] 
-    weightedFeat = [f*w for f,w in zip(normFeat, weights)]
-    X = np.concatenate(weightedFeat, axis=1)
-    return X
+def get_X(weights, feature_list, return_weights=False):
+    rms = [np.sqrt(np.mean(f**2)) for f in feature_list]
+    new_weights = weights / rms
+    weighted_feat = [f*w for f,w in zip(feature_list, new_weights)]
+    X = np.concatenate(weighted_feat, axis=1)
+    if return_weights:
+        return (X, new_weights)
+    else:
+        return X
 
 
 def get_weights(group_list, subset_idx=None):
@@ -318,9 +322,9 @@ def get_weights(group_list, subset_idx=None):
     if subset_idx is None:
         subset_idx = np.full(len(group_list[0]), True)
     else:
-        susbet_idx = np.array(subset_idx, dtype=np.bool_)
+        subset_idx = np.array(subset_idx, dtype=np.bool_)
 
-    group_labels = group_list[0]
+    group_labels = np.asarray(group_list[0])
     these_group_labels = group_labels[subset_idx]
     group_names = set(these_group_labels)
 
