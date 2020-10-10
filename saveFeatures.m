@@ -56,7 +56,7 @@ function saveFeatures(saveFile, options)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-FEATURES_VERSION = 'saveFeatures_1.2';
+FEATURES_VERSION = 'saveFeatures_1.3';
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
     
 if nargin < 2
@@ -100,7 +100,7 @@ windowSize = round(fs*WELCH_WIN_LEN);
 
 fStrings = compose('%d', f)';
 %% get power spectrum
-if any(ismember('power', options.featureList))
+if any(ismember('power', options.featureList)) && ~any(ismember('causality', options.featureList))
 
     % Estimate power using Welch's power spectrum estimator
     power = pwelch(xReshaped, windowSize,[], f,fs, 'psd');
@@ -202,6 +202,31 @@ if any(ismember('causality', options.featureList))
     causality = single(causality);
     labels.causFeatures = string(causFeatures);
     save(saveFile, 'causality', '-append') 
+end
+
+if any(ismember('causality2', options.featureList))
+    mvgcStartupScript = [options.mvgcFolder '/startup.m'];
+    run(mvgcStartupScript)
+    
+    % generate additive Granger causality values matrix in the form MxPxQ, where M 
+    % iterates over pairs of brain regions, P is frequency, and Q is time
+    % window.
+    X = double(X);
+    [causality, causFeatures, S] = additive_causality2(X, labels.area, fs, f, windowSize,...
+        options.parCores);
+    causality = single(causality);
+    labels.causFeatures = string(causFeatures);
+    
+    power = zeros(nFreq, C, W);
+    if any(ismember('power', options.featureList))
+        for k =1:C
+            power(:,k,:) = S(k,k,:,:);
+        end
+        save(saveFile, 'causality','power','-append')
+    else
+        save(saveFile, 'causality','-append') 
+    end
+    
 end
 
 %% Take Fourier transform of data
