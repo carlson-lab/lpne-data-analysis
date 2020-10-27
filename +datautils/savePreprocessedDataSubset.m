@@ -20,6 +20,10 @@ if isfield(origData, 'granger')
     newData.granger = origData.granger(:,:,subIdx);
     labels.gcFeatures = origData.labels.gcFeatures;
 end
+if isfield(origData, 'causality')
+    newData.causality = origData.causality(:,:,subIdx);
+    labels.causFeatures = origData.labels.causFeatures;
+end
 if isfield(origData, 'xFft')
     newData.xFft = origData.xFft(:,:,subIdx);
 end

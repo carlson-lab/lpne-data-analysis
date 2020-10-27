@@ -1,14 +1,11 @@
-function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
-% updated code for Wilson's method of spectral factorization
 % [H Z, ps, ps0, converged] = wilson_sf(S, fs, tol)
 % Performs a numerical inner-outer factorization of a spectral matrix, using
 % Wilsons method. This implementation here is a slight modification of the
-% original implemention by M. Dhamala (mdhamala@bme.ufl.edu) & G. Rangarajan
+% original implemention by M. Dhamala (mdhamala@bme.ufl.edu)
 % (rangaraj@math.iisc.ernet.in), UF, Aug 3-4, 2006.
-%
-% modified by S K Mody (modysk@gmail.com), 22.Sept.2016
-% revised by M. Dhamala, June, 2017
-% modified by N.M. Gallagher, Oct, 2020
+% modified by S K Mody 22.Sept.2016
+% modified by M. Dhamala Oct, 2020 (Georgia State University Physics, Atlanta)
+
 % REF:
 % The Factorization of Matricial Spectral Densities, SIAM J. Appl. Math,
 % Vol. 23, No. 4, pgs 420-426 December 1972 by G T Wilson).
@@ -58,15 +55,14 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 % relerr:
 %	The relative Cauchy error of the convergence of the spectrum or Ps.
 %
-    MAX_ITER = 500;
-    ALPHA = 0.9;
+function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
+  MAX_ITER = 500;
 
-    if (nargin < 3) || isempty(tol), tol = 1e-4; end
-    assert(isscalar(fs) && (fs > 0), ...
+  if (nargin < 3) || isempty(tol), tol = 1e-9; end
+	assert(isscalar(fs) && (fs > 0), ...
 		'fs must be a positive scalar value representing the sampling rate. ');
 	
 	[k, ~, N] = size(S);
-
 	Sarr = cat(3, S, conj(S(:, :, N-1:-1:2)));
 	ps0 = ps0_initial__(Sarr);
 	ps = repmat(ps0, [1,1,N]);
@@ -97,26 +93,22 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 		T = -tril(gp0, -1);
 		T = T - T';
 
-        if niter>0
-            ps_pp = ps_prev;
-        end
 		ps_prev = ps;
-		for i = 1 : M
-			ps(:,:,i) = ps(:,:,i)*(ALPHA*(gp(:,:,i) + T) + (1-ALPHA)*I);
-        end
+		for i = 1 : M,
+			ps(:,:,i) = ps(:,:,i)*(gp(:,:,i) + T);
+		end
 
 		ps0_prev = ps0;
 		ps0 = ps0*(gp0 + T);
 
-		% Relative cauchy error. Check on S is expensive, so check Ps0 first, then Ps and
-        % only then S.
-		[converged, relerr(niter+1)] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol);
-        if converged
+		% Relative cauchy error. Check on S is expensive, so check Ps0 first, then Ps and only then S.
+		[converged relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol);
+		if converged
 			% Uncomment this next line to check for relative cauchy error in spectrum.
 			%[converged relerr] = check_converged_S__(Sarr, ps, tol);
-        end
-        
-		niter = niter + 1;  
+		end
+
+		niter = niter + 1;
 	end
 
 	H = zeros(k,k,N);
@@ -138,7 +130,7 @@ function ps0 = ps0_initial__(Sarr)
 	
 	% perform ifft to obtain gammas.
 	Sarr = reshape(Sarr, [k*k, M]);
-	gamma = ifft(transpose(Sarr));
+	gamma = fft(transpose(Sarr)); %++++ new change: ifft replaced by fft
 	gamma0 = gamma(1,:);
 	gamma0 = reshape(gamma0, [k k]);
 	
@@ -165,6 +157,9 @@ function [gp, gp0] = PlusOperator(g)
 	gammma(:,:,1) = 0.5*gammma(:,:,1);
 	gp0 = gammma(:,:,1);
 	
+    % Take half the Nyquist (max) frequency
+    gammma(:,:,N) = 0.5*gammma(:,:,N); %+++ Change here: This line is added
+    
 	% Zero out negative powers.
 	gammma(:, :, N+1:end) = 0;
 
@@ -176,24 +171,24 @@ function [gp, gp0] = PlusOperator(g)
 end
 %%
 
-function [converged_ps, relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol)
+function [converged_ps relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol)
 
-	[converged_ps, relerr] = CheckRelErr__(ps0, ps0_prev, tol);
+	[converged_ps relerr] = CheckRelErr__(ps0, ps0_prev, tol);
 	if converged_ps
-		[converged_ps, RelErr2] = CheckRelErr__(ps, ps_prev, tol);
+		[converged_ps RelErr2] = CheckRelErr__(ps, ps_prev, tol);
 		relerr = max(relerr, RelErr2);
 	end
 	
 end
 %%
 
-function [converged_S, relerr] = check_converged_S__(S, ps, tol)
+function [converged_S relerr] = check_converged_S__(S, ps, tol)
 
 	FX = zeros(size(ps));
 	parfor j = 1 : size(ps,3)
 		FX(:,:,j) = ps(:,:,j)*ps(:,:,j)';
 	end
-	[converged_S, relerr] = CheckRelErr__(FX, S, tol);
+	[converged_S relerr] = CheckRelErr__(FX, S, tol);
 	
 end
 %%
@@ -210,3 +205,4 @@ function [ok, relerr] = CheckRelErr__(A,B,reltol)
 	ok = (relerr <= reltol);
 end
 %%
+
