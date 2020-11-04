@@ -94,7 +94,7 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 		T = T - T';
 
 		ps_prev = ps;
-		for i = 1 : M,
+		for i = 1 : M
 			ps(:,:,i) = ps(:,:,i)*(gp(:,:,i) + T);
 		end
 
@@ -102,7 +102,7 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 		ps0 = ps0*(gp0 + T);
 
 		% Relative cauchy error. Check on S is expensive, so check Ps0 first, then Ps and only then S.
-		[converged relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol);
+		[converged, relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol);
 		if converged
 			% Uncomment this next line to check for relative cauchy error in spectrum.
 			%[converged relerr] = check_converged_S__(Sarr, ps, tol);
@@ -171,24 +171,24 @@ function [gp, gp0] = PlusOperator(g)
 end
 %%
 
-function [converged_ps relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol)
+function [converged_ps, relerr] = check_converged_ps__(ps, ps_prev, ps0, ps0_prev, tol)
 
-	[converged_ps relerr] = CheckRelErr__(ps0, ps0_prev, tol);
+	[converged_ps, relerr] = CheckRelErr__(ps0, ps0_prev, tol);
 	if converged_ps
-		[converged_ps RelErr2] = CheckRelErr__(ps, ps_prev, tol);
+		[converged_ps, RelErr2] = CheckRelErr__(ps, ps_prev, tol);
 		relerr = max(relerr, RelErr2);
 	end
 	
 end
 %%
 
-function [converged_S relerr] = check_converged_S__(S, ps, tol)
+function [converged_S, relerr] = check_converged_S__(S, ps, tol)
 
 	FX = zeros(size(ps));
 	parfor j = 1 : size(ps,3)
 		FX(:,:,j) = ps(:,:,j)*ps(:,:,j)';
 	end
-	[converged_S relerr] = CheckRelErr__(FX, S, tol);
+	[converged_S, relerr] = CheckRelErr__(FX, S, tol);
 	
 end
 %%

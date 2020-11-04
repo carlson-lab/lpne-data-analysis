@@ -56,7 +56,7 @@ function saveFeatures(saveFile, options)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-FEATURES_VERSION = 'saveFeatures_1.3';
+FEATURES_VERSION = 'saveFeatures_1.4';
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
     
 if nargin < 2
@@ -188,7 +188,7 @@ if any(ismember('granger', options.featureList))
     save(saveFile, 'granger', 'instant', '-append') 
 end
 
-%% Get additive granger features
+%% Get linear causality features
 
 if any(ismember('causality', options.featureList))
     mvgcStartupScript = [options.mvgcFolder '/startup.m'];
@@ -198,27 +198,15 @@ if any(ismember('causality', options.featureList))
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
     X = double(X);
-    [causality, causFeatures] = additive_causality(X, labels.area, fs, options);
-    causality = single(causality);
-    labels.causFeatures = string(causFeatures);
-    save(saveFile, 'causality', '-append') 
-end
-
-if any(ismember('causality2', options.featureList))
-    mvgcStartupScript = [options.mvgcFolder '/startup.m'];
-    run(mvgcStartupScript)
-    
-    % generate additive Granger causality values matrix in the form MxPxQ, where M 
-    % iterates over pairs of brain regions, P is frequency, and Q is time
-    % window.
-    X = double(X);
-    [causality, causFeatures, S] = additive_causality2(X, labels.area, fs, f, windowSize,...
+    [causality, causFeatures, S] = additive_causality(X, labels.area, fs, f, windowSize,...
         options.parCores);
     causality = single(causality);
     labels.causFeatures = string(causFeatures);
     
-    power = zeros(nFreq, C, W);
+    labels.causVersion = FEATURES_VERSION;
+    
     if any(ismember('power', options.featureList))
+        power = zeros(nFreq, C, W);
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
         end
@@ -226,7 +214,6 @@ if any(ismember('causality2', options.featureList))
     else
         save(saveFile, 'causality','-append') 
     end
-    
 end
 
 %% Take Fourier transform of data
