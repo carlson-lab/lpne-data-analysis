@@ -11,6 +11,7 @@ import h5py
 import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from copy import deepcopy
+import warnings
 
 def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'granger']):
     """ Loads and extracts data from a JSON file with preprocessed data.
@@ -135,8 +136,9 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
 
             gcArray = np.asarray(features[k])
             gcArray = gcArray[:, gcFIdx, :]
-            gcArray = np.minimum(np.exp(gcArray), 10)
             features[k] = np.transpose(gcArray, (1,2,0))
+
+            warnings.warn("Raw Granger causality values loaded; if you want exponentiated or capped features, you must do that yourself")
 
             a,b,c = features[k].shape
             features[k] = features[k].reshape(a*b, c, order='F').T
@@ -180,10 +182,11 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
 
             instArray = np.asarray(features[k])
             instArray = instArray[:, gcFIdx, :]
-            instArray = np.minimum(np.exp(instArray), 10)
             features[k] = np.transpose(instArray, (1,2,0))
             a,b,c = features[k].shape
             features[k] = features[k].reshape(a*b, c, order='F').T
+
+            warnings.warn("Raw instantaneous Granger causality values loaded; if you want exponentiated or capped features, you must do that yourself")
 
             if 'instFeatures' in labels.keys():
                 # reshape corresponding array of feature labels

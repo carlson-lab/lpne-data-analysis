@@ -56,7 +56,7 @@ function saveFeatures(saveFile, options)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-FEATURES_VERSION = 'saveFeatures_1.4';
+FEATURES_VERSION = 'saveFeatures_1.5';
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
     
 if nargin < 2
@@ -173,10 +173,10 @@ if any(ismember('granger', options.featureList))
     % generate Granger causality values matrix in the form MxPxQ, where M 
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
-    d = designfilt('highpassiir', 'PassbandFrequency', 1/WELCH_WIN_LEN, ...
-                   'StopbandFrequency', 1/labels.windowLength , 'SampleRate', fs);
-    X_filt = filtfilt(d, double(X));
-    [granger, gcFeatures, instant, instFeatures] = g_causality(X_filt, labels.area, fs, ...
+    %d = designfilt('highpassiir', 'PassbandFrequency', 1/WELCH_WIN_LEN, ...
+    %               'StopbandFrequency', 1/labels.windowLength , 'SampleRate', fs);
+    %X_filt = filtfilt(d, double(X));
+    [granger, gcFeatures, instant, instFeatures] = g_causality(double(X), labels.area, fs, ...
                                                                options);
     granger = single(granger);
     labels.gcFeatures = string(gcFeatures);

@@ -8,12 +8,14 @@ if numel(subIdx) == 1
     subIdx(randsample(W, nSamples)) = true;
 end
 
+newData.X = origData.X(:,:,subIdx);
+
 if isfield(origData, 'power')
     newData.power = origData.power(:,:,subIdx);
     labels.powerFeatures = origData.labels.powerFeatures;
 end
 if isfield(origData, 'coherence')
-    newData.coherence = origData.coherence(:,:,subIdx);
+    newData.coherence = origData.coherence(:,subIdx,:,:);
     labels.cohFeatures = origData.labels.cohFeatures;
 end
 if isfield(origData, 'granger')
