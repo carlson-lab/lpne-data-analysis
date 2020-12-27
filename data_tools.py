@@ -315,6 +315,25 @@ def get_X(weights, feature_list, return_weights=False):
     else:
         return X
 
+
+def concat_features(feature_list, balanced=True, return_weights=False):
+    rms = [np.sqrt(np.mean(f**2)) for f in feature_list]
+
+    if balanced:
+        f_len = [f.shape[1] for f in feature_list]
+        weights = sum(f_len) / np.asarray(f_len)
+        weights /= rms
+    else:
+        weights = 1/rms
+
+    weighted_feat = [f*w for f,w in zip(feature_list, weights)]
+    X = np.concatenate(weighted_feat, axis=1)
+    if return_weights:
+        return (X, weights)
+    else:
+        return X
+
+
 def scale_by_freq(x, f):
     # scale by frequency
     a,b = x.shape
@@ -323,7 +342,7 @@ def scale_by_freq(x, f):
     return x
 
 def feature_mat(labels, power, caus=None):
-    w, n_p = power.shape
+    w = power.shape[0]
     f = labels['f']
 
     power = scale_by_freq(power, f)
@@ -356,9 +375,7 @@ def feature_mat(labels, power, caus=None):
     if caus is not None:
         caus = caus.reshape((w,-1))
         c_scale = c_scale.reshape((-1))
-        n_c = caus.shape[1]
-        feat_weights = (n_p+n_c) / np.asarray([n_p, n_c])
-        X, feat_weights = get_X(feat_weights, (power, caus), return_weights=True)
+        X, feat_weights = concat_features((power, caus), return_weights=True)
         feat_weights = np.concatenate((feat_weights[0]*p_scale, feat_weights[1]*c_scale))
     else:
         X = power
