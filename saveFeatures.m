@@ -210,6 +210,16 @@ if any(ismember('causality', options.featureList))
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
         end
+        
+        % generate/save matrix where elements name corresponding
+        % feature in power matrix
+        freqMat = repmat(fStrings, [1 C]);
+        areaMat = repmat(labels.area', [nFreq 1]);
+        labels.powerFeatures = string(cellfun(@(x,y) [x ' ' y], areaMat, freqMat, ...
+        'UniformOutput', false));
+    
+        labels.powVersion = ['caus_', FEATURES_VERSION];
+    
         save(saveFile, 'causality','power','-append')
     else
         save(saveFile, 'causality','-append') 
