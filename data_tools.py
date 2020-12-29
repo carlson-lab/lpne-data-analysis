@@ -341,15 +341,21 @@ def scale_by_freq(x, f):
     x = x*f
     return x
 
-def feature_mat(labels, power, caus=None):
+def feature_mat(labels, power, caus=None, f_scale=True):
     w = power.shape[0]
     f = labels['f']
 
-    power = scale_by_freq(power, f)
+    if f_scale:
+        power = scale_by_freq(power, f)
+    else:
+        power = power.reshape((power.shape[0],-1,len(f)))
     p_scale = np.zeros(power.shape[1:])
 
     if caus is not None:
-        caus = scale_by_freq(caus, f)
+        if f_scale:
+            caus = scale_by_freq(caus, f)
+        else:
+            caus = caus.reshape((caus.shape[0],-1,len(f)))
 
         pair_id = [cl.split()[0] for cl in labels['causFeatures']]
         pair_list, pair_idx = np.unique(pair_id, return_index=True)
@@ -361,13 +367,20 @@ def feature_mat(labels, power, caus=None):
     for a, area in enumerate(labels['area']):
         this_rms = np.sqrt(np.mean(power[:,a]**2))
         power[:,a] /= this_rms
-        p_scale[a] = f/this_rms
+        if f_scale:
+            p_scale[a] = f/this_rms
+        else:
+            p_scale[a] = 1/this_rms
 
         if caus is not None:
             for p, pair in enumerate(pair_list):
                 if pair.split('->')[1] == area:
                     caus[:,p] /= this_rms
-                    c_scale[p] = f/this_rms
+
+                    if f_scale:
+                        c_scale[p] = f/this_rms
+                    else:
+                        c_scale[p] = 1/this_rms
 
     power = power.reshape((w,-1))
     p_scale = p_scale.reshape((-1))
