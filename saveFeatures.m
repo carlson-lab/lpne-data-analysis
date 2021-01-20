@@ -56,15 +56,20 @@ function saveFeatures(saveFile, options)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-FEATURES_VERSION = 'saveFeatures_1.5';
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
-    
+  
+%% Get options from GUI
+
+% GUI here
+
 if nargin < 2
     % fill with default parameters
     options=[];
 end
 options=fillDefaultOpts(options);
 
+
+%% load data and prep for feature generation
 fprintf('Ignore the following warning(s) \n')
 load(saveFile,'X','dataSegments','labels', 'windowTimes')
 fs = labels.fs;
@@ -115,7 +120,7 @@ if any(ismember('power', options.featureList)) && ~any(ismember('causality', opt
     labels.powerFeatures = string(cellfun(@(x,y) [x ' ' y], areaMat, freqMat, ...
         'UniformOutput', false));
     
-    labels.powVersion = FEATURES_VERSION;
+    labels.powVersion = options.version.power;
     
     save(saveFile, 'power', '-append')
 end
@@ -157,7 +162,7 @@ if any(ismember('coherence',options.featureList))
     
     labels.cohFeatures = string(cohFeatures);
     
-    labels.cohVersion = FEATURES_VERSION;
+    labels.cohVersion = options.version.coherence;
     
     coherence=single(abs(coherence));
     % save coherence results to data
@@ -183,7 +188,7 @@ if any(ismember('granger', options.featureList))
     instant = single(instant);
     labels.instFeatures = string(instFeatures);
     
-    labels.gcVersion = FEATURES_VERSION;
+    labels.gcVersion = options.version.granger;
     
     save(saveFile, 'granger', 'instant', '-append') 
 end
@@ -203,7 +208,7 @@ if any(ismember('causality', options.featureList))
     causality = single(causality);
     labels.causFeatures = string(causFeatures);
     
-    labels.causVersion = FEATURES_VERSION;
+    labels.causVersion = options.version.causality;
     
     if any(ismember('power', options.featureList))
         power = zeros(nFreq, C, W);
@@ -218,7 +223,7 @@ if any(ismember('causality', options.featureList))
         labels.powerFeatures = string(cellfun(@(x,y) [x ' ' y], areaMat, freqMat, ...
         'UniformOutput', false));
     
-        labels.powVersion = ['caus_', FEATURES_VERSION];
+        labels.powVersion = options.version.power;
     
         save(saveFile, 'causality','power','-append')
     else
@@ -232,7 +237,7 @@ if any(ismember('fourier', options.featureList))
     xFft = (1/N)*fft(double(X));
     xFft = 2*(xFft(2:Ns+1,:,:));
     
-    labels.fftVersion = FEATURES_VERSION;
+    labels.fftVersion = options.version.fft;
     
     save(saveFile,'xFft','-append');
 end
@@ -247,6 +252,9 @@ function opts = fillDefaultOpts(opts)
     if ~isfield(opts,'windowOpts'), opts.windowOpts = []; end
     if ~isfield(opts,'featureList')
         opts.featureList = {'power','coherence','granger'};
+        opts.version.power = 'saveFeatures_1.5';
+        opts.version.coherence = 'saveFeatures_1.5';
+        opts.version.granger = 'saveFeatures_1.5';
     end
     if ~isfield(opts,'parCores'), opts.parCores = 0; end
     if ~isfield(opts,'mvgcFolder'), opts.mvgcFolder = '~/lpne-data-analysis/mvgc'; end
