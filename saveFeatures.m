@@ -105,10 +105,16 @@ windowSize = round(fs*WELCH_WIN_LEN);
 
 fStrings = compose('%d', f)';
 %% get power spectrum
-if any(ismember('power', options.featureList)) && ~any(ismember('causality', options.featureList))
+if any(ismember('power', options.featureList)) && ...
+        ~strcmp(options.version.power, 'caus_saveFeatures_1.5')
 
     % Estimate power using Welch's power spectrum estimator
-    power = pwelch(xReshaped, windowSize,[], f,fs, 'psd');
+    if strcmp(options.version.power, '1.1')
+        scale = 'power';
+    else
+        scale = 'psd';
+    end
+    power = pwelch(xReshaped, windowSize,[], f,fs, scale);
     % Reshape to MxNxP matrix where M is frequency, N is brain area, and P is time window 
     power = reshape(power, [], C, W);
     power = single(abs(power));
@@ -123,6 +129,11 @@ if any(ismember('power', options.featureList)) && ~any(ismember('causality', opt
     labels.powVersion = options.version.power;
     
     save(saveFile, 'power', '-append')
+    
+elseif any(ismember('power', options.featureList)) && ...
+        ~any(ismember('causality', options.featureList))
+    error(['Power cannot be calculated using version %s without adding ''causality'' to'...
+        ' feature list'], options.version.power)
 end
 
 %% Get the cross spectra
@@ -175,13 +186,19 @@ if any(ismember('granger', options.featureList))
     mvgcStartupScript = [options.mvgcFolder '/startup.m'];
     run(mvgcStartupScript)
     
-    % generate Granger causality values matrix in the form MxPxQ, where M 
+    % only high pass filter data for versions <1.5
+    if strcmp(options.version.granger, 'saveFeatures_1.5')
+        X_filt = double(X);
+    else
+        d = designfilt('highpassiir', 'PassbandFrequency', 1/WELCH_WIN_LEN, ...
+            'StopbandFrequency', 1/labels.windowLength , 'SampleRate', fs);
+        X_filt = filtfilt(d, double(X));
+    end
+    
+    % generate Granger causality values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
-    %d = designfilt('highpassiir', 'PassbandFrequency', 1/WELCH_WIN_LEN, ...
-    %               'StopbandFrequency', 1/labels.windowLength , 'SampleRate', fs);
-    %X_filt = filtfilt(d, double(X));
-    [granger, gcFeatures, instant, instFeatures] = g_causality(double(X), labels.area, fs, ...
+    [granger, gcFeatures, instant, instFeatures] = g_causality(X_filt, labels.area, fs, ...
                                                                options);
     granger = single(granger);
     labels.gcFeatures = string(gcFeatures);
@@ -210,7 +227,8 @@ if any(ismember('causality', options.featureList))
     
     labels.causVersion = options.version.causality;
     
-    if any(ismember('power', options.featureList))
+    if any(ismember('power', options.featureList)) && ...
+            strcmp(options.version.power, 'caus_saveFeatures_1.5')
         power = zeros(nFreq, C, W);
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
@@ -234,7 +252,12 @@ end
 %% Take Fourier transform of data
 if any(ismember('fourier', options.featureList))
     Ns = ceil(N/2);
-    xFft = (1/N)*fft(double(X));
+    if strcmp(opts.version.fft, '1.1')
+        scale = 1/sqrt(N);
+    else
+        scale = 1/N;
+    end
+    xFft = scale*fft(double(X));
     xFft = 2*(xFft(2:Ns+1,:,:));
     
     labels.fftVersion = options.version.fft;
