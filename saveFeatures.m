@@ -67,9 +67,14 @@ options=fillDefaultOpts(options);
 %% Get options from GUI
 myGui = gui();
 while isvalid(myGui)
-    pause(0.001);
     options = myGui.getOptions();
+    pause(0.001);
 end 
+if isvalid(myGui)
+   % one last check on the off chance that someone clicked an option and closed the app 
+   % in 1ms
+   options = myGui.getOptions();
+end
 
 
 %% load data and prep for feature generation
