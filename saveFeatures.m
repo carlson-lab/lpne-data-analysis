@@ -36,6 +36,9 @@ function saveFeatures(saveFile, options)
 % instant: PxFxW array to store instantaneous causality values. P
 %     iterates over undirected pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
+% causality: PxFxW array to store linear directionality features.P
+%     iterates over directed pairs of regions, F iterates over
+%     frequencies, W iterates over windows.
 % labels: See above, with
 %   ADDED FIELDS
 %   f: integer frequency of processed data
@@ -63,9 +66,9 @@ options=fillDefaultOpts(options);
 
 %% Get options from GUI
 myGui = gui();
-while isvalid(myGui);
-    options = myGui.getOptions();
+while isvalid(myGui)
     pause(0.001);
+    options = myGui.getOptions();
 end 
 
 
