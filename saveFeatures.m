@@ -56,14 +56,6 @@ function saveFeatures(saveFile, options)
 %       undirected pairs of regions, F iterates over frequencies.
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
 
-
-if nargin < 2
-    % fill with default parameters
-    options=[];
-end
-options=fillDefaultOpts(options);
-
-
 %% Get options from GUI
 myGui = gui();
 while isvalid(myGui)
@@ -75,7 +67,6 @@ if isvalid(myGui)
    % in 1ms
    options = myGui.getOptions();
 end
-
 
 %% load data and prep for feature generation
 fprintf('Ignore the following warning(s) \n')
@@ -97,14 +88,15 @@ elseif exist('X','var')
 else
     error('Data does not appear to be saved as expected in %s\n', saveFile)
 end
-if ~isempty(options.windowOpts)
-    myIdx=find(options.windowOpts==1);
-    X=X(:,:,myIdx);
-    windowLabels = fieldnames(labels.windows);
-    for m = 1:numel(windowLabels)
-        labels.windows.(windowLabels{m}) = labels.windows.(windowLabels{m})(myIdx);
-    end
-end
+
+% if ~isempty(options.windowOpts)
+%     myIdx=find(options.windowOpts==1);
+%     X=X(:,:,myIdx);
+%     windowLabels = fieldnames(labels.windows);
+%     for m = 1:numel(windowLabels)
+%         labels.windows.(windowLabels{m}) = labels.windows.(windowLabels{m})(myIdx);
+%     end
+% end
 
 % convert into 2D matrix NxCW, N is number of windows, CW iterates by brain
 % area and then by frequency
@@ -259,7 +251,7 @@ if any(ismember('causality', options.featureList))
 end
 
 %% Take Fourier transform of data
-if any(ismember('fourier', options.featureList))
+if any(ismember('fft', options.featureList))
     Ns = ceil(N/2);
     if strcmp(options.version.fft, '1.1')
         scale = 1/sqrt(N);
@@ -278,16 +270,4 @@ end
 save(saveFile,'labels','-append');
 datautils.saveJson(saveFile, labels)
 
-end
-
-function opts = fillDefaultOpts(opts)
-    if ~isfield(opts,'windowOpts'), opts.windowOpts = []; end
-    if ~isfield(opts,'featureList')
-        opts.featureList = {'power','coherence','granger'};
-        opts.version.power = 'saveFeatures_1.5';
-        opts.version.coherence = 'saveFeatures_1.5';
-        opts.version.granger = 'saveFeatures_1.5';
-    end
-    if ~isfield(opts,'parCores'), opts.parCores = 0; end
-    if ~isfield(opts,'mvgcFolder'), opts.mvgcFolder = '~/lpne-data-analysis/mvgc'; end
 end
