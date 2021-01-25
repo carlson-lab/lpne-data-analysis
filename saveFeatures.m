@@ -57,6 +57,7 @@ function saveFeatures(saveFile, options)
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
 
 %% Get options from GUI
+fprintf('Make sure you are using matlab version R2019a or later')
 myGui = gui();
 while isvalid(myGui)
     options = myGui.getOptions();
@@ -214,9 +215,6 @@ end
 %% Get linear causality features
 
 if any(ismember('causality', options.featureList))
-    mvgcStartupScript = [options.mvgcFolder '/startup.m'];
-    run(mvgcStartupScript)
-
     % generate additive Granger causality values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
