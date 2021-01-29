@@ -1,13 +1,22 @@
 function saveFeatures(saveFile, options)
 % estimate spectral features
 %
-% In previous versions, there was an additional input parameter called
-% "options." In this version a GUI pops up and asks for these options from
-% the user.
-%
 % INPUTS
 % saveFile: name of '.mat' file containing the data and labels
 %   variables. And to which the processed data will be saved
+% options: structure of options for running this function
+% FIELDS
+%   windowOpts: (Optional) a binary vector with length=number of windows,
+%     determining which windows to analyze for features.
+%   featureList: (Optional) Cell array of strings indicating which
+%     features to calculate
+%   version: Required if options.featureList is given. Structure contining
+%     fields named after each feature listed in feature list, giving the
+%     version to be used for that feature (e.g. options.version.power = '1.1')
+%   parCores: (Optional) integer indicating number of cores to use for
+%     parallel computing. If 0, all tasks executed in serial.
+%   mvgcFolder: needed if featureList includes 'granger'. String
+%     indicating folder containing MVGC toolbox.
 %
 % LOADED VARIABLES
 % labels: Structure containing labeling infomation for data
@@ -56,24 +65,17 @@ function saveFeatures(saveFile, options)
 %       undirected pairs of regions, F iterates over frequencies.
 WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
 
-%% Get options from GUI
-fprintf('Make sure you are using matlab version R2019a or later')
-myGui = gui();
-while isvalid(myGui)
-    options = myGui.getOptions();
-    pause(0.001);
-end 
-if isvalid(myGui)
-   % one last check on the off chance that someone clicked an option and closed the app 
-   % in 1ms
-   options = myGui.getOptions();
+if nargin < 2
+    % fill with default parameters
+    options=[];
 end
+options=fillDefaultOpts(options);
+
 
 %% load data and prep for feature generation
 fprintf('Ignore the following warning(s) \n')
 load(saveFile,'X','dataSegments','labels', 'windowTimes')
 fs = labels.fs;
-
 
 % evaluate at every integer frequency up to nyquist
 f = 1:floor(fs/2);
@@ -90,14 +92,14 @@ else
     error('Data does not appear to be saved as expected in %s\n', saveFile)
 end
 
-% if ~isempty(options.windowOpts)
-%     myIdx=find(options.windowOpts==1);
-%     X=X(:,:,myIdx);
-%     windowLabels = fieldnames(labels.windows);
-%     for m = 1:numel(windowLabels)
-%         labels.windows.(windowLabels{m}) = labels.windows.(windowLabels{m})(myIdx);
-%     end
-% end
+if ~isempty(options.windowOpts)
+    myIdx=find(options.windowOpts==1);
+    X=X(:,:,myIdx);
+    windowLabels = fieldnames(labels.windows);
+    for m = 1:numel(windowLabels)
+        labels.windows.(windowLabels{m}) = labels.windows.(windowLabels{m})(myIdx);
+    end
+end
 
 % convert into 2D matrix NxCW, N is number of windows, CW iterates by brain
 % area and then by frequency
@@ -268,4 +270,16 @@ end
 save(saveFile,'labels','-append');
 datautils.saveJson(saveFile, labels)
 
+end
+
+function opts = fillDefaultOpts(opts)
+    if ~isfield(opts,'windowOpts'), opts.windowOpts = []; end
+    if ~isfield(opts,'featureList')
+        opts.featureList = {'power','coherence','granger'};
+        opts.version.power = 'saveFeatures_1.5';
+        opts.version.coherence = 'saveFeatures_1.5';
+        opts.version.granger = 'saveFeatures_1.5';
+    end
+    if ~isfield(opts,'parCores'), opts.parCores = 0; end
+    if ~isfield(opts,'mvgcFolder'), opts.mvgcFolder = '~/lpne-data-analysis/mvgc'; end
 end
