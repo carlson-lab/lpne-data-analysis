@@ -1,4 +1,4 @@
-function saveFeaturesGui(saveFile, options)
+function saveFeaturesGui(saveFile)
 % estimate spectral features
 %
 % In previous versions, there was an additional input parameter called
