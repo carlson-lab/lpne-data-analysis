@@ -6,13 +6,15 @@ allows you to generate an 'upper triangular' plot of an electome factor.
 """
 __date__ = "March 2021"
 
-import numpy as np
-from math import floor
-import matplotlib.gridspec as gridspec
+
+from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
+import numpy as np
+import os
 from re import findall
+
 from data_tools import load_data, feature_mat
-from sklearn.decomposition import NMF
+
 
 
 def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
@@ -59,7 +61,7 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
     offd_ax1 = np.full((A,A), None, dtype=object)
     offd_ax2 = np.full((A,A), None, dtype=object)
     fig1 = plt.figure(constrained_layout=False)
-    spec1 = gridspec.GridSpec(ncols=A, nrows=A, figure=fig1)
+    spec1 = GridSpec(ncols=A, nrows=A, figure=fig1)
     for k in range(A):
         diag_ax[k] = fig1.add_subplot(spec1[k,k])
     for k in range(A):
@@ -178,7 +180,8 @@ def ld_plot_features(factor, labels):
     sync_mat = np.zeros((A,A,F))
     diff_mat = np.zeros((A,A,F))
 
-    feature_labels = np.hstack((labels['powerFeatures'], labels['causFeatures']))
+    feature_labels = \
+            np.hstack((labels['powerFeatures'], labels['causFeatures']))
 
     # compile power features
     for k, a in enumerate(labels['area']):
@@ -203,13 +206,18 @@ def ld_plot_features(factor, labels):
     return pow_mat, sync_mat, diff_mat
 
 
+
 if __name__ == '__main__':
     # Make an example plot with the test data located on teams
     # You will need to download those TeST.mat and TeST.json files from
     # teams and save them in this local repository location for this
     # script to work.
-    
-    power, ld, labels = load_data('TeST.mat', feature_list=['power', 'causality'], f_bounds=(1,50))
+    from sklearn.decomposition import NMF
+
+    power, ld, labels = load_data(os.path.join('testData', 'TeST.mat'), \
+            feature_list=['power', 'causality'], f_bounds=(1,50))
+    print("Label keys:", list(labels.keys()))
+
     X, _ = feature_mat(labels, power, ld)
 
     nmf_model = NMF(n_components=4, init='nndsvda').fit(X)
@@ -217,9 +225,9 @@ if __name__ == '__main__':
     comp = np.squeeze(nmf_model.components_[0])
 
     pow_mat, sync_mat, diff_mat = ld_plot_features(comp, labels)
-    factor_gridplot(pow_mat, sync_mat, diff_mat, areaList=labels['area'], freqs=np.arange(1,51), labels=('Power','Diff.'))
+    factor_gridplot(pow_mat, sync_mat, diff_mat, areaList=labels['area'], \
+            freqs=np.arange(1,51), labels=('Power','Diff.'))
 
-    pass
 
 
 ###
