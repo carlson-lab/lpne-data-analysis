@@ -1,4 +1,5 @@
-function formatWindows(saveFile, useIntervals)
+function formatWindows(saveFile, useIntervals, projectFolder, chanFile, fs, ...
+windowLength)
 % formatWindows
 %   Formats data and labels for use in lpne pipeline
 %   INPUTS
@@ -8,6 +9,12 @@ function formatWindows(saveFile, useIntervals)
 %       data from specific intervals. If 'true' there must be an 'INT_TIME'
 %       folder in the project folder containing time interval files for
 %       each LFP file.
+%   projectFolder: (optional) where the LFP data is stored. Should have 'Data'
+%       and `CHANS` subfolders.
+%   chanFile: (optional) filepath of the excel file input containing channel
+%       naming information. See `NMFDemo.ipynb`.
+%   fs: (optional) sampling rate, in Hz
+%   windowLength: (optional) length of one window, in seconds.
 %   SAVED VARIABLES
 %   data: MxNXP array of the data for each delay length. M is the #
 %       of time points. N is the # of channels. P is the # of
@@ -25,22 +32,31 @@ function formatWindows(saveFile, useIntervals)
 %           one element corresponding to each window. Suggested fields:
 %           date, etc. Must contain 'mouse', 'expDate', and 'time' fields.
 
+% Fill in default arguments and get input from the user.
 if nargin < 2
     useIntervals = false;
 end
-
-% get inputs
-projectFolder = uigetdir('.', 'Select folder containing Data & CHANS subfolders')
-dummy = input(['Make sure areas in channel info file match other datasets you plan to ' ...
-    'combine with this one!!\n', 'ENTER to continue']);
-[chanFile, chanPath] = uigetfile([projectFolder '/*.xls*'], 'Select channel info file');
-inputs = inputdlg({'Enter sampling rate (Hz):', 'Enter window length (s)'});
-fs = str2double(inputs{1}); % sampling rate, Hz
-windowLength = str2double(inputs{2}); % length of one window (s)
+if nargin < 3
+    projectFolder = uigetdir('.', 'Select folder containing Data & CHANS subfolders')
+    dummy = input(['Make sure areas in channel info file match other ' ...
+        'datasets you plan to combine with this one!!\n', 'ENTER to continue']);
+end
+if nargin < 4
+    [chanFile, chanPath] = uigetfile([projectFolder '/*.xls*'], 'Select channel info file');
+    chanFile = [chanPath chanFile];
+end
+if nargin < 5
+    inputs = inputdlg({'Enter sampling rate (Hz):'});
+    fs = str2double(inputs{1}); % sampling rate, Hz
+end
+if nargin < 6
+    inputs = inputdlg({'Enter window length (s)'});
+    windowLength = str2double(inputs{1}); % length of one window (s)
+end
 pointsPerWindow = fs*windowLength;
 
 % load channel info (and strip of unwanted ' symbols)
-chanData = readtable([chanPath chanFile], 'ReadVariableNames', false);
+chanData = readtable(chanFile, 'ReadVariableNames', false);
 chanData = strrep(chanData{:,:}, "'", '');
 channames = chanData(:,1);
 chanareas = chanData(:,2);
@@ -63,18 +79,18 @@ nWindowsParsed = 0;
 for k = 1:nSessions
     thisFile = dataList(k);
     if thisFile.isdir, continue, end
-    
+
     % clear channel data from last file and load it from the next file
     clear('-regexp','_\d\d')
     filename = thisFile.name;
     dataPath = [dataFolder filename];
     load(dataPath)
-    
+
     % load channel info; save channel names if needed
     clear('CHANNAMES', 'CHANACTIVE')
     chanFile = [chansFolder regexprep(filename, 'LFP.mat', 'CHANS.mat')];
     load(chanFile, 'CHANNAMES', 'CHANACTIVE')
-    
+
     if useIntervals
         %  load interval info
         intFile = [intFolder regexprep(filename, 'LFP.mat', 'TIME.mat')];
@@ -84,12 +100,12 @@ for k = 1:nSessions
         numIntWindows = floor(intDuration/windowLength);
         intEnd = (intStart -1) + numIntWindows*pointsPerWindow;
     end
-    
+
     % extract mouse name and experiment data from filename
     nameParts = split(filename,'_');
     mousename = nameParts{1};
     date = nameParts{2};
-    
+
     % for every channel, reshape into windows and add to main data
     % array
     channel = who('-regexp','_\d\d');
@@ -97,7 +113,7 @@ for k = 1:nSessions
     for c = 1:C
         channelIdx = strcmp(labels.channel,channel{c});
         thisChannel = eval(channel{c});
-        
+
         % populate labels once for this file
         if c==1
             if useIntervals
@@ -106,15 +122,15 @@ for k = 1:nSessions
             else
                 nWindows = floor(length(thisChannel)/pointsPerWindow);
             end
-            
+
             totalWindows = nWindowsParsed + nWindows;
             fileIdx = nWindowsParsed+1:totalWindows;
             thisData = NaN(pointsPerWindow, length(channames), nWindows, 'single');
-            
+
             labels.allWindows.mouse(fileIdx) = {mousename};
             labels.allWindows.expDate(fileIdx) = {date};
             labels.allWindows.time(fileIdx) = 1:nWindows;
-            
+
             if useIntervals
                 % save interval labels
                 intLabels = zeros(1, nWindows);
@@ -127,13 +143,13 @@ for k = 1:nSessions
                 labels.allWindows.interval(fileIdx) = intLabels;
             end
         end
-        
+
         % skip inactive or unused channels, leaving them as nans
         activeIdx = strcmp(CHANNAMES,channel{c});
         if sum(channelIdx) ~=1 || ~CHANACTIVE(activeIdx)
             continue
         end
-        
+
         if useIntervals
             % extract intervals, slice data for each interval into windows and concatenate
             usableData = zeros(pointsPerWindow, nWindows);
@@ -147,14 +163,14 @@ for k = 1:nSessions
             usableData = thisChannel(1:(nWindows*pointsPerWindow));
             usableData = reshape(usableData, pointsPerWindow, nWindows);
         end
-        
+
         thisData(:,channelIdx,:) = usableData;
-        
+
     end
     nWindowsParsed = totalWindows;
-    
+
     dataCells = cat(3,dataCells, {thisData});
-    
+
     fprintf('Day %s of %s loaded. %.1f minutes elapsed\n', ...
         date,mousename,toc/60)
 end
