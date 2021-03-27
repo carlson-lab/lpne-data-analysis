@@ -42,7 +42,7 @@ function runFeaturePipeline(saveFile, dataOpts, featureOpts, trainFile)
 %       Do not set if this data is for training. If set, uses the training
 %       file to determine the saturation thresholds and normalization
 %       constants for preprocessing.
-  
+
 if nargin < 4
     trainFile = false;
     input(['No training file indicated. If you plan to use this data for backprojection, '...
@@ -70,8 +70,11 @@ if trainFile
     if isfield(train.dataOpts, 'normFact')
         dataOpts.normFact = train.dataOpts.normFact;
     end
+    if isfield(train.dataOpts, 'toRemove')
+        dataOpts.toRemove = train.dataOpts.toRemove;
+    end
 end
-  
+
 preprocessData(saveFile, dataOpts)
 
 saveFeatures(saveFile, featureOpts)
