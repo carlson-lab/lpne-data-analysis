@@ -5,8 +5,14 @@ function preprocessData(saveFile,dataOpts)
 %   saveFile: name of '.mat' file containing the data and labels
 %       variables. And to which the fully preprocessed data will be saved
 %   dataOpts: optional input. see description in saved variables section. You
-%         can  specify some or none of the fields for this structure, and the
-%      rest will be filled with default values.
+%      can  specify some or none of the fields for this structure, and the rest
+%      will be filled with default values.
+%      FIELDS
+%      subSampFact: LFP subsampling factor (default: 2)
+%      normWindows: how to normalize windows (default: 'day')
+%      transform: whether to perform an FFT (default: false)
+%      satThresh: channel saturation method (default 'MAD')
+%      toRemove: names of channels to remove (default: [])
 %   LOADED VARIABLES
 %   data: MxNXP array of the data for each delay length. M is the #
 %       of time points. N is the # of channels. P is the # of
@@ -65,7 +71,7 @@ PREPROCESS_VERSION = 'preprocessData_1.0';
     % region to one signal
     load(saveFile, 'data', 'labels');
     data = single(data); % convert to single for memory efficiency
-    
+
     % make sure necessary information has been saved
     assert(isfield(labels.allWindows, 'mouse'), ['Please resave data with mouse identity ' ...
                         'labels in \labels.allWindows.mouse'])
@@ -77,16 +83,16 @@ PREPROCESS_VERSION = 'preprocessData_1.0';
         dataOpts = [];
     end
     dataOpts = fillDefaultDopts(dataOpts, labels);
-    
+
     [saturatedPoint, dataOpts] = computeSaturation(data, labels, dataOpts);
-    [X,labels] = averageAreas(labels,data,saturatedPoint);
+    [X,labels] = averageAreas(labels,data,saturatedPoint,dataOpts.toRemove);
     clear('data')
-    
+
     %initialize variables
     fs = labels.fsRaw;
     sampsPerWindow = labels.windowLength * fs;
     nAreas = size(X,2);
-    
+
     % subsample data using subsampling frequency
     % make sure subsample factor is a factor of sampling frequency
     if mod(fs,dataOpts.subSampFact)
@@ -131,14 +137,14 @@ PREPROCESS_VERSION = 'preprocessData_1.0';
 
       case 'whole'
         % zero mean each window
-        X = bsxfun(@minus, X, mean(X));      
+        X = bsxfun(@minus, X, mean(X));
 
         % divide by sd to get unit variance
         X_all_w = reshape(permute(X, [1 3 2]), [], size(X,2));
         X_std = std(X_all_w);
-        X = bsxfun(@rdivide, X, X_std); 
+        X = bsxfun(@rdivide, X, X_std);
         dataOpts.normFact = X_std;
-        
+
       case 'mouse'
         % normalize by channel for each mouse
         mouse = unique(labels.allWindows.mouse);
@@ -189,7 +195,7 @@ PREPROCESS_VERSION = 'preprocessData_1.0';
         xFft = 1/sqrt(ptsPerWindow)*fft(X);
         xFft = 2*(xFft(2:Ns+1,:,:));
         save(saveFile,'xFft','-append');
-        
+
         labels.fftVersion = PREPROCESS_VERSION;
     end
 
@@ -202,16 +208,17 @@ end
 
 function dataOpts=fillDefaultDopts(dataOpts, labels)
 %fill in dataOpts with default data options:
-    if ~isfield(dataOpts,'subSampFact'), dataOpts.subSampFact = 2; end 
+    if ~isfield(dataOpts,'subSampFact'), dataOpts.subSampFact = 2; end
     if ~isfield(dataOpts,'normWindows'), dataOpts.normWindows = 'day'; end
     if ~isfield(dataOpts,'transform'), dataOpts.transform = 0; end
     if ~isfield(dataOpts,'satThresh'), dataOpts.satThresh = 'MAD'; end
-    
+    if ~isfield(dataOpts,'toRemove'), dataOpts.toRemove = []; end
     dataOpts.windowLength = labels.windowLength;
     dataOpts.fsRaw = labels.fsRaw;
 end
 
-function [averagedData, labels] = averageAreas(labels,data,saturatedPoint)
+function [averagedData, labels] = averageAreas(labels,data,saturatedPoint,...
+toRemove)
 %AverageChannels - Compute average signal from channels for each area
 %   Computes the average signal for each area at
 %   all time points in the data matrix by combining channels in that area.
@@ -225,6 +232,7 @@ function [averagedData, labels] = averageAreas(labels,data,saturatedPoint)
 %       of the data for each delay. length indicating whether a data point is
 %       considered saturated (i.e. there is a signal artifact).  M is the # of
 %       time points. N is the # of channels. P is the # of windows
+%   toRemove: string matrix of channels to remove.
 %   OUTPUTS
 %   averagedData: cell vector, where each cell contains MxAxP array of the data
 %       for each delay. Each array contains average signal for each area. A is
@@ -232,22 +240,20 @@ function [averagedData, labels] = averageAreas(labels,data,saturatedPoint)
 %       point, value at that element is set to NaN.
 %   labels: Structure containing labeling infomation for data
 
-% Get names for each of the unique recording areas
+    % Get names for each of the unique recording areas
     area = unique(labels.channelArea);
-    %% If there are any channels that need to be removed for any reason, do
-    % that here in remove and then uncomment the following lines:
 
-    % remove = ["Cg_Cx_L","IL_Cx_L","PrL_Cx_L","IL_Cx_R","PrL_Cx_R"];
-    % conts = cellfun(@(c)ismember(c,remove),area,'UniformOutput',false);
-    % idx = []; 
-    % for i=1:length(area) 
-    %     if conts{i}==1 
-    %         idx=[idx i];
-    %     end, 
-    % end
-    % for i=length(idx):-1:1
-    % area(idx(i))=[];
-    % end
+    % If there are any channels that need to be removed for any reason, do that.
+    conts = cellfun(@(c)ismember(c,toRemove),area,'UniformOutput',false);
+    idx = [];
+    for i=1:length(area)
+        if conts{i}==1
+            idx=[idx i];
+        end,
+    end
+    for i=length(idx):-1:1
+    area(idx(i))=[];
+    end
 
     %% get sizes for averagedData array
     nAreas = numel(area);
@@ -265,7 +271,7 @@ function [averagedData, labels] = averageAreas(labels,data,saturatedPoint)
         chanInArea = strcmp(labels.channelArea,area{a});
         areaData = data(:,chanInArea,:);
         averagedData(:,a,:) = mean(areaData,2,'omitnan');
-        
+
         if sum(sum(isnan(averagedData(:,a,:))))/numel(averagedData(:,a,:))>0.75
             bad{end+1}=area{a};
         end
@@ -274,7 +280,7 @@ function [averagedData, labels] = averageAreas(labels,data,saturatedPoint)
         for i=1:numel(bad)
             error("Won't work, too many unusable points in %s, stopping", bad{i})
         end
-        
+
     end
     % remove windows w/ NaNs
     nansInData = isnan(averagedData);
@@ -288,5 +294,3 @@ function [averagedData, labels] = averageAreas(labels,data,saturatedPoint)
 
     labels.area = area;
 end
-
-
