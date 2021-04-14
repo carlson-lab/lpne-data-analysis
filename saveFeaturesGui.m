@@ -10,6 +10,9 @@ function saveFeaturesGui(saveFile)
 %   variables. And to which the processed data will be saved
 %
 % LOADED VARIABLES
+% X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW array. A is
+%       the # of areas. N=number of frequency points per
+%       window. W=number of time windows.
 % labels: Structure containing labeling infomation for data
 %   FIELDS USED
 %   fsRaw: sampling frequency of unprocessed data (Hz)
@@ -17,12 +20,7 @@ function saveFeaturesGui(saveFile)
 %       the second dimension of xFft
 %   fs: sampling frequency of processed data (Hz)
 %   windows: same as allWindows, but with unusable windows eliminated
-%   X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW array. A is
-%       the # of areas. N=number of frequency points per
-%       window. W=number of time windows.
 %   windowLength: length of windows (s)
-% dataSegments (optional): output data from preprocessing through
-%   dataSegments method.
 %
 % SAVED VARIABLES
 % power: MxNxP matrix of power values where M is frequency, N is brain area,
@@ -36,24 +34,32 @@ function saveFeaturesGui(saveFile)
 % instant: PxFxW array to store instantaneous causality values. P
 %     iterates over undirected pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
-% causality: PxFxW array to store linear directionality features.P
-%     iterates over directed pairs of regions, F iterates over
+% directionality: PxFxW array to store 'full' model linear directionality
+%     features. P iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
+% directionality_pairwise: PxFxW array to store pairwise linear directionality
+%     features. P iterates over directed pairs of regions, F iterates over
+%     frequencies, W iterates over windows.
+% fft: fourier transform of X
 % labels: See above, with
 %   ADDED FIELDS
 %   f: integer frequency of processed data
 %   powerFeatures: MxN matrix of string labels describing the
-%       features represented in labels.power. M is frequency, N is
+%       features represented in power. M is frequency, N is
 %       brain area.
 %   cohFeatures: MxPxQ array of string labels describing the
-%       features represented in labels.coherence. M is frequency, P
+%       features represented in coherence. M is frequency, P
 %       and Q are the two brain areas where coherence is calculated.
 %   gcFeatures: PxF array of string labels describing the
-%       features represented in labels.granger. P iterates over
+%       features represented in granger. P iterates over
 %       directed pairs of regions, F iterates over frequencies.
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
+%   ldFeatures: PxF array of string labels describing the
+%       features represented in directionality and directionality_pairwise
+%       P iterates over directed pairs of regions, F iterates over
+%       frequencies.
 
 %% Get options from GUI
 fprintf('Make sure you are using matlab version R2019a or later')

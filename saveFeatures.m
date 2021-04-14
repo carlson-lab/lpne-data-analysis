@@ -2,23 +2,40 @@ function saveFeatures(saveFile, options)
 % estimate spectral features
 %
 % INPUTS
-% saveFile: name of '.mat' file containing the data and labels
-%   variables. And to which the processed data will be saved
+% saveFile: name of '.mat' file containing the X and labels
+%   variables; and to which the processed data will be saved.
 % options: structure of options for running this function
 % FIELDS
 %   windowOpts: (Optional) a binary vector with length=number of windows,
 %     determining which windows to analyze for features.
 %   featureList: (Optional) Cell array of strings indicating which
-%     features to calculate
+%     features to calculate. The following strings are available options:
+%     'power', 'coherence', 'directionality', 'directionality_pairwise',
+%     'fft', 'granger'.
 %   version: Required if options.featureList is given. Structure contining
 %     fields named after each feature listed in feature list, giving the
-%     version to be used for that feature (e.g. options.version.power = '1.1')
+%     version to be used for that feature (e.g. options.version.power =
+%     '1.1'). options.version.directionality corresponds to both
+%     directionality and directionality_pairwise features.
 %   parCores: (Optional) integer indicating number of cores to use for
 %     parallel computing. If 0, all tasks executed in serial.
+%   window: integer or vector
+%     If an integer, gives length of Hamming subwindows used in
+%     Welch's method for estimating a power spectrum.
+%     If a vector, indicates the window that should be used in Welch's
+%     method. Can also be left as an empty array '[]' to use the
+%     matlab defaule window size.
+%   overlap: integer
+%     Indicate the overlap between sucessive windows when using
+%     Welch's method to estimate a power spectrum. If left as empty
+%     (i.e. []) then the matlab default is used.
 %   mvgcFolder: needed if featureList includes 'granger'. String
 %     indicating folder containing MVGC toolbox.
 %
-% LOADED VARIABLES
+% LOADED VARIABLES (from saveFile)
+% X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW array. A is
+%       the # of areas. N=number of frequency points per
+%       window. W=number of time windows.
 % labels: Structure containing labeling infomation for data
 %   FIELDS USED
 %   fsRaw: sampling frequency of unprocessed data (Hz)
@@ -26,12 +43,7 @@ function saveFeatures(saveFile, options)
 %       the second dimension of xFft
 %   fs: sampling frequency of processed data (Hz)
 %   windows: same as allWindows, but with unusable windows eliminated
-%   X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW array. A is
-%       the # of areas. N=number of frequency points per
-%       window. W=number of time windows.
 %   windowLength: length of windows (s)
-% dataSegments (optional): output data from preprocessing through
-%   dataSegments method.
 %
 % SAVED VARIABLES
 % power: MxNxP matrix of power values where M is frequency, N is brain area,
@@ -45,37 +57,45 @@ function saveFeatures(saveFile, options)
 % instant: PxFxW array to store instantaneous causality values. P
 %     iterates over undirected pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
-% causality: PxFxW array to store linear directionality features.P
-%     iterates over directed pairs of regions, F iterates over
+% directionality: PxFxW array to store 'full' model linear directionality
+%     features. P iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
+% directionality_pairwise: PxFxW array to store pairwise linear directionality
+%     features. P iterates over directed pairs of regions, F iterates over
+%     frequencies, W iterates over windows.
+% fft: fourier transform of X
 % labels: See above, with
 %   ADDED FIELDS
 %   f: integer frequency of processed data
 %   powerFeatures: MxN matrix of string labels describing the
-%       features represented in labels.power. M is frequency, N is
+%       features represented in power. M is frequency, N is
 %       brain area.
 %   cohFeatures: MxPxQ array of string labels describing the
-%       features represented in labels.coherence. M is frequency, P
+%       features represented in coherence. M is frequency, P
 %       and Q are the two brain areas where coherence is calculated.
 %   gcFeatures: PxF array of string labels describing the
-%       features represented in labels.granger. P iterates over
+%       features represented in granger. P iterates over
 %       directed pairs of regions, F iterates over frequencies.
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-WELCH_WIN_LEN = 1/4; % quarter of a second (frequency resolution of 4Hz)
+%   ldFeatures: PxF array of string labels describing the
+%       features represented in directionality and directionality_pairwise
+%       P iterates over directed pairs of regions, F iterates over
+%       frequencies.
+
+% original implementation of Welch's method here used 1/4s long windows
+ORIG_WELCH_WIN_LEN = 1/4; 
+
+%% load data and prep for feature generation
+load(saveFile,'X', 'labels')
+fs = labels.fs;
 
 if nargin < 2
     % fill with default parameters
     options=[];
 end
-options=fillDefaultOpts(options);
-
-
-%% load data and prep for feature generation
-fprintf('Ignore the following warning(s) \n')
-load(saveFile,'X','dataSegments','labels', 'windowTimes')
-fs = labels.fs;
+options=fillDefaultOpts(options, fs);
 
 % evaluate at every integer frequency up to nyquist
 f = 1:floor(fs/2);
@@ -105,12 +125,32 @@ end
 % area and then by frequency
 [N,C,W] = size(X);
 xReshaped = reshape(X, N, C*W);
-windowSize = round(fs*WELCH_WIN_LEN);
 
 fStrings = compose('%d', f)';
+
+% check if any features use Welch's method, if so check version. Then
+% revert to old Welch's method windowing options if necessary.
+welchFeatures = {'power','coherence','directionality'};
+calcWFeatures = ismember(welchFeatures, options.featureList);
+changeWelchVersion = [false; false; false];
+for k = 1:length(calcWFeatures)
+   if calcWFeatures(k)
+      if ~strcmp(options.version.(welchFeatures{k}), 'saveFeatures_1.6')
+          changeWelchVersion(k) = true;
+      end
+   end
+end
+if any(changeWelchVersion)
+    warning(['Power, coherence, and directionality versions saveFeatures_1.5 and '...
+        'earlier did not use Welch method window options; If you set options.window or'...
+        ' options.overlap, they will be overridden.'])
+    options.window = round(fs*ORIG_WELCH_WIN_LEN);
+    options.overlap = [];
+end
+    
 %% get power spectrum
 if any(ismember('power', options.featureList)) && ...
-        ~strcmp(options.version.power, 'caus_saveFeatures_1.5')
+        ~strcmp(options.version.power(1:5), 'ld_')
 
     % Estimate power using Welch's power spectrum estimator
     if strcmp(options.version.power, '1.1')
@@ -118,7 +158,8 @@ if any(ismember('power', options.featureList)) && ...
     else
         scale = 'psd';
     end
-    power = pwelch(xReshaped, windowSize,[], f,fs, scale);
+    
+    power = pwelch(xReshaped, options.window, options.overlap, f,fs, scale);
     % Reshape to MxNxP matrix where M is frequency, N is brain area, and P is time window
     power = reshape(power, [], C, W);
     power = single(abs(power));
@@ -135,8 +176,8 @@ if any(ismember('power', options.featureList)) && ...
     save(saveFile, 'power', '-append')
 
 elseif any(ismember('power', options.featureList)) && ...
-        ~any(ismember('causality', options.featureList))
-    error(['Power cannot be calculated using version %s without adding ''causality'' to'...
+        ~any(ismember('directionality', options.featureList))
+    error(['Power cannot be calculated using version %s without adding ''directionality'' to'...
         ' feature list'], options.version.power)
 end
 
@@ -163,7 +204,7 @@ if any(ismember('coherence',options.featureList))
             % use coherence function to calculate coherence between each pair of
             % channels; save to each brain pair location (ie X and Y as well as Y
             % and X)
-            cxy = mscohere(x,y, windowSize,[], f,fs);
+            cxy = mscohere(x,y, options.window, options.overlap, f,fs);
             coherence(:,:,c2,c1) = cxy; % symmetric
 
             % save feature labels for this pair of regions
@@ -194,7 +235,7 @@ if any(ismember('granger', options.featureList))
     if strcmp(options.version.granger, 'saveFeatures_1.5')
         X_filt = double(X);
     else
-        d = designfilt('highpassiir', 'PassbandFrequency', 1/WELCH_WIN_LEN, ...
+        d = designfilt('highpassiir', 'PassbandFrequency', 1/ORIG_WELCH_WIN_LEN, ...
             'StopbandFrequency', 1/labels.windowLength , 'SampleRate', fs);
         X_filt = filtfilt(d, double(X));
     end
@@ -214,22 +255,39 @@ if any(ismember('granger', options.featureList))
     save(saveFile, 'granger', 'instant', '-append')
 end
 
-%% Get linear causality features
-
-if any(ismember('causality', options.featureList))
-    % generate additive Granger causality values matrix in the form MxPxQ, where M
+%% Get linear directionality features
+% Check if full or pairwise directionality features are to be calculated.
+directionFeatures = ismember({'directionality', 'directionality_pairwise'}, ...
+    options.featureList);
+if any(directionFeatures)
+    X = double(X);
+    
+    % generate linear directionality values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
-    X = double(X);
-    [causality, causFeatures, S] = additive_causality(X, labels.area, fs, f, windowSize,...
-        options.parCores);
-    causality = single(causality);
-    labels.causFeatures = string(causFeatures);
-
-    labels.causVersion = options.version.causality;
-
+    [directionality, ldFeatures, S] = linear_directionality(X, labels.area, fs, f,...
+        directionFeatures, options);
+    
+    labels.ldFeatures = string(ldFeatures);
+    labels.ldVersion = options.version.directionality;
+    
+    % Save calculated features
+    if sum(directionFeatures) == 2
+        directionality_pairwise = single(directionality{2});
+        directionality = single(directionality{1});
+        save(saveFile, 'directionality', 'directionality_pairwise', '-append')
+    elseif directionFeatures(1)
+        directionality = single(directionality);
+        save(saveFile, 'directionality','-append')
+    else
+        directionality_pairwise = single(directionality);
+        save(saveFile, 'directionality_pairwise','-append')
+    end  
+    
+    % Check if power values should be saved from the CPSD generated in ld
+    % calculations
     if any(ismember('power', options.featureList)) && ...
-            strcmp(options.version.power, 'caus_saveFeatures_1.5')
+            strcmp(options.version.power(1:17), 'ld_saveFeatures')
         power = zeros(nFreq, C, W);
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
@@ -244,9 +302,7 @@ if any(ismember('causality', options.featureList))
 
         labels.powVersion = options.version.power;
 
-        save(saveFile, 'causality','power','-append')
-    else
-        save(saveFile, 'causality','-append')
+        save(saveFile, 'power','-append')
     end
 end
 
@@ -272,14 +328,16 @@ datautils.saveJson(saveFile, labels)
 
 end
 
-function opts = fillDefaultOpts(opts)
+function opts = fillDefaultOpts(opts, fs)
     if ~isfield(opts,'windowOpts'), opts.windowOpts = []; end
     if ~isfield(opts,'featureList')
-        opts.featureList = {'power','coherence','granger'};
-        opts.version.power = 'saveFeatures_1.5';
-        opts.version.coherence = 'saveFeatures_1.5';
-        opts.version.granger = 'saveFeatures_1.5';
+        opts.featureList = {'power','coherence','directionality'};
+        opts.version.power = 'saveFeatures_1.6';
+        opts.version.coherence = 'saveFeatures_1.6';
+        opts.version.directionality = 'saveFeatures_1.6';
     end
     if ~isfield(opts,'parCores'), opts.parCores = 0; end
+    if ~isfield(opts, 'window'), opts.window = rectwin(round(fs*2/5)); end
+    if ~isfield(opts, 'overlap'), opts.overlap = []; end
     if ~isfield(opts,'mvgcFolder'), opts.mvgcFolder = '~/lpne-data-analysis/mvgc'; end
 end
