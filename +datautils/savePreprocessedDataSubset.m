@@ -22,9 +22,17 @@ if isfield(origData, 'granger')
     newData.granger = origData.granger(:,:,subIdx);
     labels.gcFeatures = origData.labels.gcFeatures;
 end
-if isfield(origData, 'causality')
-    newData.causality = origData.causality(:,:,subIdx);
-    labels.causFeatures = origData.labels.causFeatures;
+if isfield(origData, 'directionality')
+    newData.directionality = origData.directionality(:,:,subIdx);
+    labels.ldFeatures = origData.labels.ldFeatures;
+end
+if isfield(origData, 'directionality_pairwise')
+    newData.directionality_pairwise = origData.directionality_pairwise(:,:,subIdx);
+    labels.ldFeatures = origData.labels.ldFeatures;
+end
+if isfield(origData, 'directionality_cond')
+    newData.directionality_cond = origData.directionality_cond(:,:,subIdx);
+    labels.ldcFeatures = origData.labels.ldcFeatures;
 end
 if isfield(origData, 'xFft')
     newData.xFft = origData.xFft(:,:,subIdx);

@@ -306,6 +306,22 @@ if any(directionFeatures)
     end
 end
 
+%% Get conditional linear directionality features
+if ismember('directionality_cond', options.featureList)
+    mvgcStartupScript = [options.mvgcFolder '/startup.m'];
+    run(mvgcStartupScript)
+    
+    X = double(X);
+    
+    [directionality_cond, ldFeatures] = linear_directionality_cond(X, labels.area, fs, f,...
+        options);
+    
+    labels.ldcFeatures = string(ldFeatures);
+    labels.ldcVersion = options.version.directionality;
+    
+    directionality_cond = single(directionality_cond);
+    save(saveFile, 'directionality_cond','-append')
+end
 %% Take Fourier transform of data
 if any(ismember('fft', options.featureList))
     Ns = ceil(N/2);
