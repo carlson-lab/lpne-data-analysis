@@ -135,7 +135,7 @@ calcWFeatures = ismember(welchFeatures, options.featureList);
 changeWelchVersion = [false; false; false];
 for k = 1:length(calcWFeatures)
    if calcWFeatures(k)
-      if ~strcmp(options.version.(welchFeatures{k}), 'saveFeatures_1.6')
+      if ~(str2double(options.version.(welchFeatures{k})(end-2:end)) >= 1.6)
           changeWelchVersion(k) = true;
       end
    end
@@ -150,7 +150,7 @@ end
     
 %% get power spectrum
 if any(ismember('power', options.featureList)) && ...
-        ~strcmp(options.version.power(1:5), 'ld_')
+        ~strncmp(options.version.power, 'ld_', 3)
 
     % Estimate power using Welch's power spectrum estimator
     if strcmp(options.version.power, '1.1')
@@ -287,7 +287,7 @@ if any(directionFeatures)
     % Check if power values should be saved from the CPSD generated in ld
     % calculations
     if any(ismember('power', options.featureList)) && ...
-            strcmp(options.version.power(1:17), 'ld_saveFeatures')
+            strncmp(options.version.power, 'ld_saveFeatures', 15)
         power = zeros(nFreq, C, W);
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
@@ -306,22 +306,6 @@ if any(directionFeatures)
     end
 end
 
-%% Get conditional linear directionality features
-if ismember('directionality_cond', options.featureList)
-    mvgcStartupScript = [options.mvgcFolder '/startup.m'];
-    run(mvgcStartupScript)
-    
-    X = double(X);
-    
-    [directionality_cond, ldFeatures] = linear_directionality_cond(X, labels.area, fs, f,...
-        options);
-    
-    labels.ldcFeatures = string(ldFeatures);
-    labels.ldcVersion = options.version.directionality;
-    
-    directionality_cond = single(directionality_cond);
-    save(saveFile, 'directionality_cond','-append')
-end
 %% Take Fourier transform of data
 if any(ismember('fft', options.featureList))
     Ns = ceil(N/2);
