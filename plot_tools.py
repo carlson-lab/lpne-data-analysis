@@ -15,6 +15,7 @@ from matplotlib.gridspec import GridSpec
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+import sys
 from re import findall
 
 from data_tools import load_data, feature_mat
@@ -234,11 +235,10 @@ def get_factor_features(feature_str, feature_labels, factor):
     return factor[f_idx]
 
 
-def ld_plot_features(factor, labels, sync_diff=True):
+def ld_plot_features(factor, labels, sync_diff=True, ld_only=False):
     """
     Extract features to generate grid plot of factor composed of power
-    and linear directionality. This was the format for the LD factor
-    respresentation that Kaf has requested.
+    and linear directionality.
 
     Parameters
     ----------
@@ -253,6 +253,8 @@ def ld_plot_features(factor, labels, sync_diff=True):
         If true, return the sum (i.e. 'sync') and difference of
         directionality features. Otherwise just return a matrix
         containing the directionality features.
+    ld_only: boolean
+        If true, don't return an array of power features.
 
     Returns
     -------
@@ -267,24 +269,34 @@ def ld_plot_features(factor, labels, sync_diff=True):
         Array of 'difference' values representing the difference of
         linear directionality in both directions for a pair of regions.
         Shape = [AxAxF] where A = # of areas; F = # of frequencies.
+    ld_mat: numpy.ndarray
+        Array of linear directional values in both directions for a pair of
+        regions. Shape = [AxAxF] where A = # of areas; F = # of frequencies.
     """
     A = len(labels['area'])
     F = len(labels['f'])
 
-    pow_mat = np.zeros((A,F))
+    # initialize return matrices
+    if not ld_only:
+        pow_mat = np.zeros((A,F))
     if sync_diff:
         sync_mat = np.zeros((A,A,F))
         diff_mat = np.zeros((A,A,F))
     else:
         ld_mat = np.zeros((A,A,F))
 
-    feature_labels = \
+    if ld_only:
+        feature_labels = labels['ldFeatures']
+    else:
+        feature_labels = \
             np.hstack((labels['powerFeatures'], labels['ldFeatures']))
 
     # compile power features
     for k, a in enumerate(labels['area']):
-        pow_features = '^' + a + ' [0-9]{1,3}$'
-        pow_mat[k] = get_factor_features(pow_features, feature_labels, factor)
+
+        if not ld_only:
+            pow_features = '^' + a + ' [0-9]{1,3}$'
+            pow_mat[k] = get_factor_features(pow_features, feature_labels, factor)
 
         # compile directionality features
         for m, b in enumerate(labels['area'][k+1:]):
@@ -301,10 +313,20 @@ def ld_plot_features(factor, labels, sync_diff=True):
             else:
                 ld_mat[k, b_idx] = ld1
                 ld_mat[b_idx, k] = ld2
-    if sync_diff:
-        return pow_mat, sync_mat, diff_mat
+
+    if ld_only:
+        feature_tup = ()
     else:
-        return pow_mat, ld_mat
+        feature_tup = (pow_mat,)
+
+    if sync_diff:
+        feature_tup += (sync_mat, diff_mat)
+    else:
+        feature_tup += (ld_mat,)
+
+    if len(feature_tup) == 1:
+        feature_tup = feature_tup[0] # unpack if single output
+    return feature_tup
 
 
 
@@ -315,6 +337,11 @@ if __name__ == '__main__':
     # script to work.
     from sklearn.decomposition import NMF
 
+    if len(sys.argv) == 1:
+        type = 'upper'
+    else:
+        type = sys.argv[1]
+
     power, ld, labels = load_data(os.path.join('testData', 'TeST.mat'), \
             feature_list=['power', 'directionality_pairwise'], f_bounds=(1,50))
 
@@ -322,12 +349,15 @@ if __name__ == '__main__':
 
     nmf_model = NMF(n_components=5, init='nndsvdar').fit(X)
 
-    comp = np.squeeze(nmf_model.components_[3])
+    comp = np.squeeze(nmf_model.components_[4])
 
-    pow_mat, ld_mat = ld_plot_features(comp, labels, sync_diff=False)
-    factor_full_gridplot(pow_mat, ld_mat, areaList=labels['area'], \
-            freqs=np.arange(1,51), ylabel=('Pow. Dens.'))
-
-
+    if type == 'full':
+        pow_mat, ld_mat = ld_plot_features(comp, labels, sync_diff=False)
+        factor_full_gridplot(pow_mat, ld_mat, areaList=labels['area'], \
+                             freqs=np.arange(1,51), ylabel=("Power"))
+    else:
+        pow_mat, sync_mat, diff_mat = ld_plot_features(comp, labels, sync_diff=True)
+        factor_gridplot(pow_mat, sync_mat, diff_mat, areaList=labels['area'], \
+                             freqs=np.arange(1,51), labels=("Power", "Diff."))
 
 ###
