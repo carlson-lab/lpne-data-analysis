@@ -200,36 +200,40 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality'
             else:
                 print('Directionality features calculated using unknown version')
 
-        if ft == 'directionality_cond':
-            ldFIdx = [k+1 for k in fIdx]
+        if ft == 'psi':
+            psiArray = np.asarray(features[k])
+            features[k] = psiArray[:, fIdx]
 
-            ldArray = np.asarray(features[k])
-            features[k] = ldArray[:, ldFIdx].astype('float64')
+            # collect indices of non-diagional entries
+            r1, c1 = np.triu_indices( features[k].shape[-1], k=1)
+            up_features = features[k][..., r1,c1]
+            r2, c2 = np.tril_indices( features[k].shape[-1], k=-1)
+            low_features = features[k][..., r2,c2]
 
-            # select off-diagonal entries only
-            r1, c1 = np.triu_indices(features[k].shape[-1], k=1)
-            r2, c2 = np.tril_indices(features[k].shape[-1], k=-1)
-            features[k] = np.concatenate((features[k][..., r1,c1], features[k][..., r2,c2]), axis=2)
-
+            features[k] = np.concatenate((up_features, low_features), axis=2)
             a,b,c = features[k].shape
             features[k] = features[k].reshape(a, b*c, order='F')
 
-            if 'ldcFeatures' in labels.keys():
+            if 'psiFeatures' in labels.keys():
                 # reshape corresponding array of feature labels
                 # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
-                ldf = np.asarray(labels['ldcFeatures'])
-                ldf = ldf[...,ldFIdx].T
-                ldf = np.concatenate((ldf[..., r1,c1], ldf[..., r2,c2]), axis=1)
-                labels['ldcFeatures'] = ldf.reshape(b*c, order='F')
+                psif = np.asarray(labels['psiFeatures']).T
+                psif = psif[fIdx]
 
-            if 'ldcVersion' in labels.keys():
-                d_version = labels['ldcVersion']
-                print('version {0} used to calcuate condiational directionality features'
+                # collect indices of non-diagional entries
+                upf = psif[..., r1,c1]
+                lowf = psif[..., r2,c2]
+                psif = np.concatenate((upf, lowf), axis=1)
+
+                labels['psiFeatures'] = psif.reshape(b*c, order='F')
+
+            if 'psiVersion' in labels.keys():
+                d_version = labels['psiVersion']
+                print('version {0} used to calcuate PSI features'
                       .format(d_version))
             else:
-                print("Conditional directionality features calculated using unknown "
-                      "version")
-
+                print('PSI features calculated using unknown version')
+                
         if ft == 'xFft':
             # account for double precision roundoff error
             tol = 1e-6
