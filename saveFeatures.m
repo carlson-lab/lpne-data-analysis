@@ -306,6 +306,39 @@ if any(directionFeatures)
     end
 end
 
+if ismember('psi', options.featureList)
+    segleng = fs; % 1 Hz frequency resolution
+    fBins = [f(1:end-1)', (f(1:end-1)'+1), (f(1:end-1)'+2)];
+    
+    % create feature labels
+    psiFeatures = cell(C,C,nFreq-1);
+    psiFeatures(:) = {''};
+    areaList = labels.area;
+    for c1 = 1:C
+        for c2 = 1:C
+            if c1==c2, continue, end
+            % save feature labels for this pair of regions
+            psiFeatures(c1,c2,:) = cellfun(@(x) [areaList{c1} '~>' areaList{c2} ' ' x], ...
+                fStrings(1:end-1), 'UniformOutput', false);
+        end
+    end
+    
+    labels.psiFeatures = string(psiFeatures);
+    labels.psiVersion = 'saveFeatures_1.6';
+    
+    if options.parCores, pp = parpool([2 options.parCores]); end
+    
+    % calculate psi for eac window
+    psi = zeros(C,C,nFreq-1,W, 'single');
+    parfor (w = 1:W, options.parCores)
+        thisData = X(:,:,w);
+        psi(:,:,:,w) = data2psi(thisData, segleng, [], fBins);
+    end
+    if options.parCores, delete(pp), end
+    
+    save(saveFile, 'psi', '-append')
+end
+
 %% Take Fourier transform of data
 if any(ismember('fft', options.featureList))
     Ns = ceil(N/2);
