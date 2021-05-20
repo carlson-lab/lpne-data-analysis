@@ -22,17 +22,18 @@ from data_tools import load_data, feature_mat
 
 YLIM_SCALE = 1.1
 R_LABEL_SIZE = 7
-R_LABEL_X_OFF = -60
-R_LABEL_Y_OFF = 0.5
 
 def base_gridplot(A, full=True, **figargs):
     """ Generates a figure made up of a grid of subplots. """
+    fig1, ax = plt.subplots(A, A, constrained_layout=False, figsize=figargs['figsize'])
+
     diag_ax = np.full(A, None, dtype=object)
     offd_ax1 = np.full((A,A), None, dtype=object)
-    fig1 = plt.figure(constrained_layout=False, figsize=figargs['figsize'])
-    spec1 = GridSpec(ncols=A, nrows=A, figure=fig1)
+#    fig1 = plt.figure(constrained_layout=False, figsize=figargs['figsize'])
+#    spec1 = GridSpec(ncols=A, nrows=A, figure=fig1)
     for k in range(A):
-        diag_ax[k] = fig1.add_subplot(spec1[k,k])
+#        diag_ax[k] = fig1.add_subplot(spec1[k,k])
+        diag_ax[k] = ax[k,k]
 
     # Handle off-diagonal subplots differently for full or upper
     # triangular plots
@@ -40,24 +41,27 @@ def base_gridplot(A, full=True, **figargs):
         for k in range(A):
             for m in range(A):
                 if m != k:
-                    offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
+                    #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
+                    offd_ax1[k,m] = ax[k,m]
 
         return (diag_ax, offd_ax1, fig1)
     else:
         offd_ax2 = np.full((A,A), None, dtype=object)
         for k in range(A):
             for m in range(k+1,A):
-                offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
-                offd_ax2[k,m] = offd_ax1[k,m].twinx()
-
+                #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
+                #offd_ax2[k,m] = offd_ax1[k,m].twinx()
+                offd_ax1[k,m] = ax[k,m]
+                offd_ax2[k,m] = ax[k,m].twinx()
+                
         return (diag_ax, offd_ax1, offd_ax2, fig1)
 
 
-def plot_diags(diag_ax, diags, freqs, max_val):
+def plot_diags(diag_ax, diags, freqs, max_val, **figargs):
     """ Fill diagonal plots """
     ylims = YLIM_SCALE*np.asarray([0, 1])
     for k in range(diags.shape[0]):
-        diag_ax[k].plot(freqs, diags[k]/max_val, color='k')
+        diag_ax[k].plot(freqs, diags[k]/max_val, color=figargs['d_color'])
         diag_ax[k].set_ylim(ylims)
         diag_ax[k].axes.xaxis.set_ticks([])
         diag_ax[k].axes.yaxis.set_ticks([])
@@ -65,20 +69,23 @@ def plot_diags(diag_ax, diags, freqs, max_val):
 
 def set_xaxis(ax, freqs, **figargs):
     """ Set x axis labels and ticks """
-    if figargs['num_xtick'] == 1:
-        freq_ticks = (freqs[-1],)
-    elif figargs['num_xtick'] == 2:
-        freq_ticks = (int(freqs[-1]/2), freqs[-1])
-    else:
-        freq_ticks = (freqs[0], int(freqs[-1]/2), freqs[-1])
+    if figargs['label_bot']:
+        if figargs['num_xtick'] == 1:
+            freq_ticks = (freqs[-1],)
+        elif figargs['num_xtick'] == 2:
+            freq_ticks = (int(freqs[-1]/2), freqs[-1])
+        else:
+            freq_ticks = (freqs[0], int(freqs[-1]/2), freqs[-1])
 
-    ax.set_xticks(freq_ticks)
-    ax.tick_params(axis='x', labelsize=figargs['ticksize'])
+        ax.set_xticks(freq_ticks)
+        ax.tick_params(axis='x', labelsize=figargs['ticksize'])
+    else:
+        ax.set_xticks(())
 
 def set_yaxis(ax, labels, area, **figargs):
     """ Set y axis labels """
-    ax.set_ylabel(labels, color='k', fontsize=figargs['ticksize'])
-    ax.text(R_LABEL_X_OFF, R_LABEL_Y_OFF, area, fontsize=R_LABEL_SIZE, fontweight='bold', ha='right')
+    if figargs['label_left']:
+        ax.set_ylabel(area, color='k', fontsize=R_LABEL_SIZE, fontweight='bold', rotation='horizontal', ha='right')
 
 
 def factor_full_gridplot(diags, offdiags, areaList=None, freqs=1, ylabel='', save=False, **figargs):
@@ -109,14 +116,14 @@ def factor_full_gridplot(diags, offdiags, areaList=None, freqs=1, ylabel='', sav
     A = diags.shape[0]
     diag_ax, offd_ax, fig = base_gridplot(A, full=True, **figargs)
     max_val = np.max([np.max(abs(diags)), np.max(abs(offdiags))])
-    plot_diags(diag_ax, diags, freqs, max_val)
+    plot_diags(diag_ax, diags, freqs, max_val, **figargs)
 
     # Fill off diagonal plots
     ylims = YLIM_SCALE*np.asarray([0, 1])
     for k in range(A):
         for m in range(A):
             if m != k:
-                offd_ax[k,m].plot(freqs, offdiags[k,m]/max_val, color='k')
+                offd_ax[k,m].plot(freqs, offdiags[k,m]/max_val, color=figargs['offd_color'])
                 offd_ax[k,m].set_ylim(ylims)
                 offd_ax[k,m].axes.yaxis.set_ticks([])
                 offd_ax[k,m].axes.xaxis.set_ticks([])
@@ -125,23 +132,27 @@ def factor_full_gridplot(diags, offdiags, areaList=None, freqs=1, ylabel='', sav
     set_xaxis(diag_ax[-1], freqs, **figargs)
     for k in range(A-1):
         set_xaxis(offd_ax[-1,k], freqs, **figargs)
-    plt.xlabel('Freq. (Hz)', x=figargs['xlab_shift'])
+    if figargs['label_bot']:
+        fig.supxlabel('Freq. (Hz)', y=-0.05, fontsize=9)
 
     # set y axis labels for left column
     set_yaxis(diag_ax[0], ylabel, areaList[0], **figargs)
     for k in range(1,A):
         set_yaxis(offd_ax[k,0], ylabel, areaList[k], **figargs)
+    if figargs['label_left']:
+        fig.supylabel(ylabel, x=-0.025, fontsize=9)
 
-    # set area title for columns
-    diag_ax[0].set_title(areaList[0], fontsize=R_LABEL_SIZE, fontweight='bold',
-                         rotation=figargs['reg_rotation'], x=figargs['reg_xshift'])
-    for k in range(1,A):
-        offd_ax[0,k].set_title(areaList[k], fontsize=R_LABEL_SIZE, fontweight='bold',
-                               rotation=figargs['reg_rotation'], x=figargs['reg_xshift'])
+    if figargs['label_top']:
+        # set area title for columns
+        diag_ax[0].set_title(areaList[0], fontsize=R_LABEL_SIZE, fontweight='bold',
+                             rotation=figargs['reg_rotation'], x=figargs['reg_xshift'])
+        for k in range(1,A):
+            offd_ax[0,k].set_title(areaList[k], fontsize=R_LABEL_SIZE, fontweight='bold',
+                                   rotation=figargs['reg_rotation'], x=figargs['reg_xshift'])
 
 
     if save:
-        plt.savefig(figargs['savename'], transparent=True, bbox_inches='tight')
+        plt.savefig(figargs['savename'], transparent=False, bbox_inches='tight')
     else:
         plt.show()
 
