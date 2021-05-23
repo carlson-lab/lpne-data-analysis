@@ -379,7 +379,7 @@ def scale_by_freq(x, f):
     x = x*f
     return x
 
-def feature_mat(labels, power, lds=None, f_scale=True, ldConditional=False):
+def feature_mat(labels, power, lds=None, f_scale=True):
     w = power.shape[0]
     f = labels['f']
 
@@ -395,11 +395,7 @@ def feature_mat(labels, power, lds=None, f_scale=True, ldConditional=False):
         else:
             lds = lds.reshape((lds.shape[0],-1,len(f)))
 
-        if ldConditional:
-            # use conditional feature descriptions
-            ldFeatStr = 'ldcFeatures'
-        else:
-            ldFeatStr = 'ldFeatures'
+        ldFeatStr = 'ldFeatures'
 
         pair_id = [cl.split()[0] for cl in labels[ldFeatStr]]
         pair_list, pair_idx = np.unique(pair_id, return_index=True)
