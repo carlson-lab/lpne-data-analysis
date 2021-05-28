@@ -133,7 +133,7 @@ def factor_full_gridplot(diags, offdiags, areaList=None, freqs=1, ylabel='', sav
     for k in range(A-1):
         set_xaxis(offd_ax[-1,k], freqs, **figargs)
     if figargs['label_bot']:
-        fig.supxlabel('Freq. (Hz)', y=-0.05, fontsize=9)
+        fig.supxlabel('Freq. (Hz)', y=figargs['xlab_offset'], fontsize=9)
 
     # set y axis labels for left column
     set_yaxis(diag_ax[0], ylabel, areaList[0], **figargs)
