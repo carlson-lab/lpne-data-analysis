@@ -12,6 +12,7 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from copy import deepcopy
 import warnings
+from IPython.core.debugger import set_trace
 
 def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality']):
     """ Loads and extracts data from a JSON file with preprocessed data.
@@ -233,7 +234,76 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality'
                       .format(d_version))
             else:
                 print('PSI features calculated using unknown version')
-                
+
+        if ft == 'pdc':
+            pdcArray = np.asarray(features[k])
+            features[k] = pdcArray[:, fIdx]
+
+            # collect indices of non-diagional entries
+            r1, c1 = np.triu_indices( features[k].shape[-1], k=1)
+            up_features = features[k][..., r1,c1]
+            r2, c2 = np.tril_indices( features[k].shape[-1], k=-1)
+            low_features = features[k][..., r2,c2]
+
+            features[k] = np.concatenate((up_features, low_features), axis=2)
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a, b*c, order='F')
+
+            if 'pdFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                pdcf = np.asarray(labels['pdFeatures']).T
+                pdcf = pdcf[fIdx]
+
+                # collect indices of non-diagional entries
+                upf = pdcf[..., r1,c1]
+                lowf = pdcf[..., r2,c2]
+                pdcf = np.concatenate((upf, lowf), axis=1)
+
+                labels['pdcFeatures'] = pdcf.reshape(b*c, order='F')
+
+            if 'pdVersion' in labels.keys():
+                d_version = labels['pdVersion']
+                print('version {0} used to calcuate PSI features'
+                      .format(d_version))
+            else:
+                print('PDC features calculated using unknown version')
+
+        if ft == 'dtf':
+            dtfArray = np.asarray(features[k])
+            features[k] = dtfArray[:, fIdx]
+
+            # collect indices of non-diagional entries
+            r1, c1 = np.triu_indices( features[k].shape[-1], k=1)
+            up_features = features[k][..., r1,c1]
+            r2, c2 = np.tril_indices( features[k].shape[-1], k=-1)
+            low_features = features[k][..., r2,c2]
+
+            features[k] = np.concatenate((up_features, low_features), axis=2)
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a, b*c, order='F')
+
+            if 'pdFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                dtff = np.asarray(labels['pdFeatures']).T
+                dtff = dtff[fIdx]
+
+                # collect indices of non-diagional entries
+                upf = dtff[..., r1,c1]
+                lowf = dtff[..., r2,c2]
+                dtff = np.concatenate((upf, lowf), axis=1)
+
+                labels['dtfFeatures'] = dtff.reshape(b*c, order='F')
+
+            if 'pdVersion' in labels.keys():
+                d_version = labels['pdVersion']
+                print('version {0} used to calcuate PSI features'
+                      .format(d_version))
+            else:
+                print('DTF features calculated using unknown version')
+
+
         if ft == 'xFft':
             # account for double precision roundoff error
             tol = 1e-6

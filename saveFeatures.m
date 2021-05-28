@@ -339,6 +339,21 @@ if ismember('psi', options.featureList)
     save(saveFile, 'psi', '-append')
 end
 
+if any(ismember({'pdc','dtf'}, options.featureList))
+    % generate linear directionality values matrix in the form MxPxQ, where M
+    % iterates over pairs of brain regions, P is frequency, and Q is time
+    % window.
+    X = double(X);
+    
+    [pdc, dtf, pdFeatures] = pdc_dtf(X, labels.area, fs, f, options);
+    
+    labels.pdFeatures = string(pdFeatures);
+    labels.pdVersion = 'saveFeatures_1.6';
+    
+    save(saveFile, 'pdc', 'dtf', '-append')
+end
+
+
 %% Take Fourier transform of data
 if any(ismember('fft', options.featureList))
     Ns = ceil(N/2);
