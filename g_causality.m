@@ -1,13 +1,13 @@
 function [gcArray, gcFeatures, instArray, instFeatures] = ...
     g_causality(data, areaList, fs, options)
 % Frequency-domain granger causality
-%    Estimates frequency-domain granger causality from x->y and y->x. Estimates
-%    are given for all frequency bands given by f.
+%    Estimates frequency-domain granger causality from x->y and y->x.
+%    Estimates are given for all frequency bands given by f.
 %
 %    INPUTS
-%    X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW array. A is
-%        the # of areas. N=number of frequency points per
-%        window. W=number of time windows.
+%    data: Preprocessed (filtered, averaged, checked for saturation) data.
+%        NxAxW array. A is the # of areas. N=number of frequency points
+%        per window. W=number of time windows.
 %    fs: Sampling rate (Hz)
 %    areaList: ordered list of brain areas from which data was recorded
 %    options: structure of options for this function. If any not included,
@@ -32,6 +32,7 @@ function [gcArray, gcFeatures, instArray, instFeatures] = ...
 %
 % This function requires the MVGC toolbox. Portions of this code were taken
 % from mvgc_demo script of that toolbox.
+% Toolbox can be accessed at: https://users.sussex.ac.uk/~lionelb/MVGC/
 
 if nargin < 2
     % fill with default parameters

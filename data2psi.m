@@ -30,8 +30,10 @@ function [psi, stdpsi, psisum, stdpsisum]=data2psi(data,segleng,epleng,freqbins)
 %         to avoid 0/0 for the diagonal elements) 
 % psisum =sum(psi,2) is the net flux for each channel. 
 % stdpsisum  is the estimated standard deviation of psisum. (stdpsisum cannot be 
-%             calculated from psi and stdpsi - therefore the extra output) 
-
+%             calculated from psi and stdpsi - therefore the extra output)
+%
+% This code was downloaded in May 2020 from:
+% http://doc.ml.tu-berlin.de/causality/data2psi.m
 
 % License
 %

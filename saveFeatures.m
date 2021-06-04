@@ -2,7 +2,7 @@ function saveFeatures(saveFile, options)
 % estimate spectral features
 %
 % INPUTS
-% saveFile: name of '.mat' file containing the X and labels
+% saveFile: name of '.mat' file containing X and labels
 %   variables; and to which the processed data will be saved.
 % options: structure of options for running this function
 % FIELDS
@@ -10,13 +10,13 @@ function saveFeatures(saveFile, options)
 %     determining which windows to analyze for features.
 %   featureList: (Optional) Cell array of strings indicating which
 %     features to calculate. The following strings are available options:
-%     'power', 'coherence', 'directionality', 'directionality_pairwise',
+%     'power', 'coherence', 'directedSpectrum', 'pwDirectedSpectrum',
 %     'fft', 'granger'.
 %   version: Required if options.featureList is given. Structure contining
 %     fields named after each feature listed in feature list, giving the
 %     version to be used for that feature (e.g. options.version.power =
-%     '1.1'). options.version.directionality corresponds to both
-%     directionality and directionality_pairwise features.
+%     '1.1'). options.version.directedSpectrum corresponds to both
+%     directedSpectrum and pwDirectedSpectrum features.
 %   parCores: (Optional) integer indicating number of cores to use for
 %     parallel computing. If 0, all tasks executed in serial.
 %   window: integer or vector
@@ -33,8 +33,8 @@ function saveFeatures(saveFile, options)
 %     indicating folder containing MVGC toolbox.
 %
 % LOADED VARIABLES (from saveFile)
-% X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW array. A is
-%       the # of areas. N=number of frequency points per
+% X: Preprocessed (filtered, averaged, checked for saturation) data. NxAxW
+%       array. A is the # of areas. N=number of frequency points per
 %       window. W=number of time windows.
 % labels: Structure containing labeling infomation for data
 %   FIELDS USED
@@ -42,25 +42,28 @@ function saveFeatures(saveFile, options)
 %   area: cell array of labels for each area corresponding to
 %       the second dimension of xFft
 %   fs: sampling frequency of processed data (Hz)
-%   windows: same as allWindows, but with unusable windows eliminated
+%   windows: structure containing relevant labels pertaining to
+%           individual windows. Each field should be a vector / array with
+%           one element corresponding to each window. Suggested fields:
+%           date, etc. Must contain 'mouse', 'expDate', and 'time' fields.
 %   windowLength: length of windows (s)
 %
 % SAVED VARIABLES
-% power: MxNxP matrix of power values where M is frequency, N is brain area,
-%     and P is time window
-% coherence: MxNxPxQ array to store coherence variables where M is frequency,
-%     N is time window, and P and Q are the two brain areas where coherence is
-%     calculated
+% power: MxNxP matrix of power values where M is frequency, N is brain
+%     area, and P is time window
+% coherence: MxNxPxQ array to store coherence variables where M is
+%     frequency, N is time window, and P and Q are the two brain areas
+%     where coherence is calculated
 % granger: PxFxW array to store granger causality values. P
 %     iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
 % instant: PxFxW array to store instantaneous causality values. P
 %     iterates over undirected pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
-% directionality: PxFxW array to store 'full' model linear directionality
+% directedSpectrum: PxFxW array to store 'full' model directed spectrum
 %     features. P iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
-% directionality_pairwise: PxFxW array to store pairwise linear directionality
+% pwDirectedSpectrum: PxFxW array to store pairwise directed spectrum
 %     features. P iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
 % fft: fourier transform of X
@@ -79,8 +82,8 @@ function saveFeatures(saveFile, options)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-%   ldFeatures: PxF array of string labels describing the
-%       features represented in directionality and directionality_pairwise
+%   dsFeatures: PxF array of string labels describing the
+%       features represented in directedSpectrum and pwDirectedSpectrum
 %       P iterates over directed pairs of regions, F iterates over
 %       frequencies.
 
@@ -130,7 +133,7 @@ fStrings = compose('%d', f)';
 
 % check if any features use Welch's method, if so check version. Then
 % revert to old Welch's method windowing options if necessary.
-welchFeatures = {'power','coherence','directionality'};
+welchFeatures = {'power','coherence','directedSpectrum'};
 calcWFeatures = ismember(welchFeatures, options.featureList);
 changeWelchVersion = [false; false; false];
 for k = 1:length(calcWFeatures)
@@ -141,7 +144,7 @@ for k = 1:length(calcWFeatures)
    end
 end
 if any(changeWelchVersion)
-    warning(['Power, coherence, and directionality versions saveFeatures_1.5 and '...
+    warning(['Power, coherence, and Directed Spectrum versions saveFeatures_1.5 and '...
         'earlier did not use Welch method window options; If you set options.window or'...
         ' options.overlap, they will be overridden.'])
     options.window = round(fs*ORIG_WELCH_WIN_LEN);
@@ -150,7 +153,7 @@ end
     
 %% get power spectrum
 if any(ismember('power', options.featureList)) && ...
-        ~strncmp(options.version.power, 'ld_', 3)
+        ~strncmp(options.version.power, 'ds_', 3)
 
     % Estimate power using Welch's power spectrum estimator
     if strcmp(options.version.power, '1.1')
@@ -160,7 +163,8 @@ if any(ismember('power', options.featureList)) && ...
     end
     
     power = pwelch(xReshaped, options.window, options.overlap, f,fs, scale);
-    % Reshape to MxNxP matrix where M is frequency, N is brain area, and P is time window
+    % Reshape to MxNxP matrix where M is frequency, N is brain area, and
+    % P is time window.
     power = reshape(power, [], C, W);
     power = single(abs(power));
 
@@ -176,16 +180,16 @@ if any(ismember('power', options.featureList)) && ...
     save(saveFile, 'power', '-append')
 
 elseif any(ismember('power', options.featureList)) && ...
-        ~any(ismember('directionality', options.featureList))
-    error(['Power cannot be calculated using version %s without adding ''directionality'' to'...
-        ' feature list'], options.version.power)
+        ~any(ismember('directedSpectrum', options.featureList))
+    error(['Power cannot be calculated using version %s without adding '...
+        '''directedSpectrum'' to feature list'], options.version.power)
 end
 
 %% Get the cross spectra
 
-% Initialize a MxNxPxQ matrix to store coherence variables where M is frequency,
-% N is time window, and P and Q are the two brain areas where coherence is
-% calculated
+% Initialize a MxNxPxQ matrix to store coherence variables where M is
+% frequency, N is time window, and P and Q are the two brain areas where
+% coherence is calculated
 if any(ismember('coherence',options.featureList))
     coherence = zeros(nFreq,W,C,C);
     % initialize feature labels to empty strings
@@ -208,11 +212,12 @@ if any(ismember('coherence',options.featureList))
             coherence(:,:,c2,c1) = cxy; % symmetric
 
             % save feature labels for this pair of regions
-            cohFeatures(:,c2,c1) = cellfun(@(x) [areaList{c1} '-' areaList{c2} ' ' x], fStrings, ...
-                'UniformOutput', false);
+            cohFeatures(:,c2,c1) = cellfun(@(x) [areaList{c1} '-' areaList{c2} ' ' x], ...
+                fStrings, 'UniformOutput', false);
         end
 
-        fprintf('Evaluated remaining %s coherence(s): %2.1fs elapsed\n', areaList{c1}, toc(a))
+        fprintf('Evaluated remaining %s coherence(s): %2.1fs elapsed\n', areaList{c1},...
+            toc(a))
     end
     if options.parCores, delete(pp), end
 
@@ -255,39 +260,39 @@ if any(ismember('granger', options.featureList))
     save(saveFile, 'granger', 'instant', '-append')
 end
 
-%% Get linear directionality features
-% Check if full or pairwise directionality features are to be calculated.
-directionFeatures = ismember({'directionality', 'directionality_pairwise'}, ...
+%% Get directed spectrum features
+% Check if full or pairwise directedSpectrum features are to be calculated.
+directionFeatures = ismember({'directedSpectrum', 'pwDirectedSpectrum'}, ...
     options.featureList);
 if any(directionFeatures)
     X = double(X);
     
-    % generate linear directionality values matrix in the form MxPxQ, where M
+    % generate directed spectrum values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
-    [directionality, ldFeatures, S] = linear_directionality(X, labels.area, fs, f,...
+    [directedSpectrum, dsFeatures, S] = directed_spectrum(X, labels.area, fs, f,...
         directionFeatures, options);
     
-    labels.ldFeatures = string(ldFeatures);
-    labels.ldVersion = options.version.directionality;
+    labels.dsFeatures = string(dsFeatures);
+    labels.dsVersion = options.version.directedSpectrum;
     
     % Save calculated features
     if sum(directionFeatures) == 2
-        directionality_pairwise = single(directionality{2});
-        directionality = single(directionality{1});
-        save(saveFile, 'directionality', 'directionality_pairwise', '-append')
+        pwDirectedSpectrum = single(directedSpectrum{2});
+        directedSpectrum = single(directedSpectrum{1});
+        save(saveFile, 'directedSpectrum', 'pwDirectedSpectrum', '-append')
     elseif directionFeatures(1)
-        directionality = single(directionality);
-        save(saveFile, 'directionality','-append')
+        directedSpectrum = single(directedSpectrum);
+        save(saveFile, 'directedSpectrum','-append')
     else
-        directionality_pairwise = single(directionality);
-        save(saveFile, 'directionality_pairwise','-append')
+        pwDirectedSpectrum = single(directedSpectrum);
+        save(saveFile, 'pwDirectedSpectrum','-append')
     end  
     
-    % Check if power values should be saved from the CPSD generated in ld
+    % Check if power values should be saved from the CPSD generated in ds
     % calculations
     if any(ismember('power', options.featureList)) && ...
-            strncmp(options.version.power, 'ld_saveFeatures', 15)
+            strncmp(options.version.power, 'ds_saveFeatures', 15)
         power = zeros(nFreq, C, W);
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
@@ -340,7 +345,7 @@ if ismember('psi', options.featureList)
 end
 
 if any(ismember({'pdc','dtf'}, options.featureList))
-    % generate linear directionality values matrix in the form MxPxQ, where M
+    % generate directed spectrum values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
     X = double(X);
@@ -379,10 +384,10 @@ end
 function opts = fillDefaultOpts(opts, fs)
     if ~isfield(opts,'windowOpts'), opts.windowOpts = []; end
     if ~isfield(opts,'featureList')
-        opts.featureList = {'power','coherence','directionality'};
+        opts.featureList = {'power','coherence','directedSpectrum'};
         opts.version.power = 'saveFeatures_1.6';
         opts.version.coherence = 'saveFeatures_1.6';
-        opts.version.directionality = 'saveFeatures_1.6';
+        opts.version.directedSpectrum = 'saveFeatures_1.6';
     end
     if ~isfield(opts,'parCores'), opts.parCores = 0; end
     if ~isfield(opts, 'window'), opts.window = rectwin(round(fs*2/5)); end

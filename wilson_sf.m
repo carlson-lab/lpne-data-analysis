@@ -5,6 +5,7 @@
 % (rangaraj@math.iisc.ernet.in), UF, Aug 3-4, 2006.
 % modified by S K Mody 22.Sept.2016
 % modified by M. Dhamala Oct, 2020 (Georgia State University Physics, Atlanta)
+% modified by N. Gallagher Nov, 2020
 
 % REF:
 % The Factorization of Matricial Spectral Densities, SIAM J. Appl. Math,
@@ -130,7 +131,7 @@ function ps0 = ps0_initial__(Sarr)
 	
 	% perform ifft to obtain gammas.
 	Sarr = reshape(Sarr, [k*k, M]);
-	gamma = fft(transpose(Sarr)); %++++ new change: ifft replaced by fft
+	gamma = fft(transpose(Sarr));
 	gamma0 = gamma(1,:);
 	gamma0 = reshape(gamma0, [k k]);
 	
