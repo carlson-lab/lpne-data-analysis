@@ -19,7 +19,10 @@ function saveFeaturesGui(saveFile)
 %   area: cell array of labels for each area corresponding to
 %       the second dimension of xFft
 %   fs: sampling frequency of processed data (Hz)
-%   windows: same as allWindows, but with unusable windows eliminated
+%   windows: structure containing relevant labels pertaining to
+%           individual windows. Each field should be a vector / array with
+%           one element corresponding to each window. Suggested fields:
+%           date, etc. Must contain 'mouse', 'expDate', and 'time' fields.
 %   windowLength: length of windows (s)
 %
 % SAVED VARIABLES
@@ -34,10 +37,10 @@ function saveFeaturesGui(saveFile)
 % instant: PxFxW array to store instantaneous causality values. P
 %     iterates over undirected pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
-% directionality: PxFxW array to store 'full' model linear directionality
+% directedSpectrum: PxFxW array to store 'full' model directed spectrum
 %     features. P iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
-% directionality_pairwise: PxFxW array to store pairwise linear directionality
+% pwDirectedSpectrum: PxFxW array to store pairwise directed spectrum
 %     features. P iterates over directed pairs of regions, F iterates over
 %     frequencies, W iterates over windows.
 % fft: fourier transform of X
@@ -56,8 +59,8 @@ function saveFeaturesGui(saveFile)
 %   instFeatures: PxF array of string labels describing the
 %       features represented in instArray. P iterates over
 %       undirected pairs of regions, F iterates over frequencies.
-%   ldFeatures: PxF array of string labels describing the
-%       features represented in directionality and directionality_pairwise
+%   dsFeatures: PxF array of string labels describing the
+%       features represented in directedSpectrum and pwDirectedSpectrum
 %       P iterates over directed pairs of regions, F iterates over
 %       frequencies.
 

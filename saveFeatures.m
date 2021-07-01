@@ -15,8 +15,11 @@ function saveFeatures(saveFile, options)
 %   version: Required if options.featureList is given. Structure contining
 %     fields named after each feature listed in feature list, giving the
 %     version to be used for that feature (e.g. options.version.power =
-%     '1.1'). options.version.directedSpectrum corresponds to both
-%     directedSpectrum and pwDirectedSpectrum features.
+%     'saveFeatures_1.5'). options.version.directedSpectrum corresponds to
+%     both directedSpectrum and pwDirectedSpectrum features. Moving
+%     forward, the naming convention is to label a version with the name of
+%     the file containing the primary code for calculating that feature,
+%     followed by a version number (e.g. 'saveFeatures_1.5').
 %   parCores: (Optional) integer indicating number of cores to use for
 %     parallel computing. If 0, all tasks executed in serial.
 %   window: integer or vector
@@ -153,7 +156,7 @@ end
     
 %% get power spectrum
 if any(ismember('power', options.featureList)) && ...
-        ~strncmp(options.version.power, 'ds_', 3)
+        ~strncmp(options.version.power, 'directed_spectrum_', 18)
 
     % Estimate power using Welch's power spectrum estimator
     if strcmp(options.version.power, '1.1')
@@ -180,7 +183,7 @@ if any(ismember('power', options.featureList)) && ...
     save(saveFile, 'power', '-append')
 
 elseif any(ismember('power', options.featureList)) && ...
-        ~any(ismember('directedSpectrum', options.featureList))
+        ~any(ismember({'directedSpectrum','pwDirectedSpectrum'}, options.featureList))
     error(['Power cannot be calculated using version %s without adding '...
         '''directedSpectrum'' to feature list'], options.version.power)
 end
@@ -292,7 +295,7 @@ if any(directionFeatures)
     % Check if power values should be saved from the CPSD generated in ds
     % calculations
     if any(ismember('power', options.featureList)) && ...
-            strncmp(options.version.power, 'ds_saveFeatures', 15)
+            strncmp(options.version.power, 'directed_spectrum_', 18)
         power = zeros(nFreq, C, W);
         for k =1:C
             power(:,k,:) = S(k,k,:,:);
@@ -311,52 +314,53 @@ if any(directionFeatures)
     end
 end
 
-if ismember('psi', options.featureList)
-    segleng = fs; % 1 Hz frequency resolution
-    fBins = [f(1:end-1)', (f(1:end-1)'+1), (f(1:end-1)'+2)];
-    
-    % create feature labels
-    psiFeatures = cell(C,C,nFreq-1);
-    psiFeatures(:) = {''};
-    areaList = labels.area;
-    for c1 = 1:C
-        for c2 = 1:C
-            if c1==c2, continue, end
-            % save feature labels for this pair of regions
-            psiFeatures(c1,c2,:) = cellfun(@(x) [areaList{c1} '~>' areaList{c2} ' ' x], ...
-                fStrings(1:end-1), 'UniformOutput', false);
-        end
-    end
-    
-    labels.psiFeatures = string(psiFeatures);
-    labels.psiVersion = 'saveFeatures_1.6';
-    
-    if options.parCores, pp = parpool([2 options.parCores]); end
-    
-    % calculate psi for eac window
-    psi = zeros(C,C,nFreq-1,W, 'single');
-    parfor (w = 1:W, options.parCores)
-        thisData = X(:,:,w);
-        psi(:,:,:,w) = data2psi(thisData, segleng, [], fBins);
-    end
-    if options.parCores, delete(pp), end
-    
-    save(saveFile, 'psi', '-append')
-end
-
-if any(ismember({'pdc','dtf'}, options.featureList))
-    % generate directed spectrum values matrix in the form MxPxQ, where M
-    % iterates over pairs of brain regions, P is frequency, and Q is time
-    % window.
-    X = double(X);
-    
-    [pdc, dtf, pdFeatures] = pdc_dtf(X, labels.area, fs, f, options);
-    
-    labels.pdFeatures = string(pdFeatures);
-    labels.pdVersion = 'saveFeatures_1.6';
-    
-    save(saveFile, 'pdc', 'dtf', '-append')
-end
+%% Phase slope index, partial directed coherence and directed transfer function
+% if ismember('psi', options.featureList)
+%     segleng = fs; % 1 Hz frequency resolution
+%     fBins = [f(1:end-1)', (f(1:end-1)'+1), (f(1:end-1)'+2)];
+%     
+%     % create feature labels
+%     psiFeatures = cell(C,C,nFreq-1);
+%     psiFeatures(:) = {''};
+%     areaList = labels.area;
+%     for c1 = 1:C
+%         for c2 = 1:C
+%             if c1==c2, continue, end
+%             % save feature labels for this pair of regions
+%             psiFeatures(c1,c2,:) = cellfun(@(x) [areaList{c1} '~>' areaList{c2} ' ' x], ...
+%                 fStrings(1:end-1), 'UniformOutput', false);
+%         end
+%     end
+%     
+%     labels.psiFeatures = string(psiFeatures);
+%     labels.psiVersion = 'saveFeatures_1.6';
+%     
+%     if options.parCores, pp = parpool([2 options.parCores]); end
+%     
+%     % calculate psi for eac window
+%     psi = zeros(C,C,nFreq-1,W, 'single');
+%     parfor (w = 1:W, options.parCores)
+%         thisData = X(:,:,w);
+%         psi(:,:,:,w) = data2psi(thisData, segleng, [], fBins);
+%     end
+%     if options.parCores, delete(pp), end
+%     
+%     save(saveFile, 'psi', '-append')
+% end
+% 
+% if any(ismember({'pdc','dtf'}, options.featureList))
+%     % generate directed spectrum values matrix in the form MxPxQ, where M
+%     % iterates over pairs of brain regions, P is frequency, and Q is time
+%     % window.
+%     X = double(X);
+%     
+%     [pdc, dtf, pdFeatures] = pdc_dtf(X, labels.area, fs, f, options);
+%     
+%     labels.pdFeatures = string(pdFeatures);
+%     labels.pdVersion = 'saveFeatures_1.6';
+%     
+%     save(saveFile, 'pdc', 'dtf', '-append')
+% end
 
 
 %% Take Fourier transform of data
@@ -387,7 +391,7 @@ function opts = fillDefaultOpts(opts, fs)
         opts.featureList = {'power','coherence','directedSpectrum'};
         opts.version.power = 'saveFeatures_1.6';
         opts.version.coherence = 'saveFeatures_1.6';
-        opts.version.directedSpectrum = 'saveFeatures_1.6';
+        opts.version.directedSpectrum = 'directed_spectrum_1.0';
     end
     if ~isfield(opts,'parCores'), opts.parCores = 0; end
     if ~isfield(opts, 'window'), opts.window = rectwin(round(fs*2/5)); end
