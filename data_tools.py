@@ -12,9 +12,9 @@ import numpy as np
 from sklearn.preprocessing import LabelEncoder
 from copy import deepcopy
 import warnings
-from IPython.core.debugger import set_trace
 
-def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality']):
+
+def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directedSpectrum']):
     """ Loads and extracts data from a JSON file with preprocessed data.
 
     Loads the data from the file, then extracts each field, takes only the data
@@ -41,7 +41,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality'
     granger: Transformed matrix of Granger causality values 
         within the frequency range given by f_bounds; MxN array where N iterates over
         frequency, then directed pairs of areas.
-    directionality, directionality_pairwise, directionality_cond:
+    directedSpectrum, pwDirectedSpectrum:
         Transformed matrix of the Linear Directed Spectrum
         within the frequency range given by f_bounds; same dimensions as granger.
     instant: Transformed matrix of exponentiated instantaneous causality values
@@ -178,7 +178,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality'
                 ift = ift[:, gcFIdx].T
                 labels['instFeatures'] = ift.reshape(a*b, order='F')
 
-        if ft in ['directionality', 'directionality_pairwise']:
+        if ft in ['directedSpectrum', 'pwDirectedSpectrum']:
             ldFIdx = [k+1 for k in fIdx]
 
             ldArray = np.asarray(features[k])
@@ -196,10 +196,10 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directionality'
 
             if 'ldVersion' in labels.keys():
                 d_version = labels['ldVersion']
-                print('version {0} used to calcuate directionality features'
+                print('version {0} used to calcuate directedSpectrum features'
                       .format(d_version))
             else:
-                print('Directionality features calculated using unknown version')
+                print('Directed Spectrum features calculated using unknown version')
 
         if ft == 'psi':
             psiArray = np.asarray(features[k])
