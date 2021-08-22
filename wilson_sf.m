@@ -75,7 +75,7 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 
 	U = zeros(size(Sarr));
 	for j = 1 : M
-		U(:,:,j) = chol(Sarr(:,:,j));
+		U(:,:,j) = chol(Sarr(:,:,j) + eye(size(Sarr, 1))*2*eps);
 	end
 
 	niter = 0;
