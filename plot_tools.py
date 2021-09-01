@@ -8,7 +8,7 @@ For now this really just has two useful functions:
     of a factor, with upper and lower triangular sections representing
     different directions.
 """
-__date__ = "May 2021"
+__date__ = "September 2021"
 
 
 from matplotlib.gridspec import GridSpec
@@ -23,142 +23,109 @@ from data_tools import load_data, feature_mat
 YLIM_SCALE = 1.1
 R_LABEL_SIZE = 7
 
-def base_gridplot(A, full=True, **figargs):
-    """ Generates a figure made up of a grid of subplots. """
-    fig1, ax = plt.subplots(A, A, constrained_layout=False, figsize=figargs['figsize'])
 
-    diag_ax = np.full(A, None, dtype=object)
-    offd_ax1 = np.full((A,A), None, dtype=object)
-#    fig1 = plt.figure(constrained_layout=False, figsize=figargs['figsize'])
-#    spec1 = GridSpec(ncols=A, nrows=A, figure=fig1)
-    for k in range(A):
-#        diag_ax[k] = fig1.add_subplot(spec1[k,k])
-        diag_ax[k] = ax[k,k]
-
-    # Handle off-diagonal subplots differently for full or upper
-    # triangular plots
-    if full:
-        for k in range(A):
-            for m in range(A):
-                if m != k:
-                    #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
-                    offd_ax1[k,m] = ax[k,m]
-
-        return (diag_ax, offd_ax1, fig1)
-    else:
-        offd_ax2 = np.full((A,A), None, dtype=object)
-        for k in range(A):
-            for m in range(k+1,A):
-                #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
-                #offd_ax2[k,m] = offd_ax1[k,m].twinx()
-                offd_ax1[k,m] = ax[k,m]
-                offd_ax2[k,m] = ax[k,m].twinx()
-                
-        return (diag_ax, offd_ax1, offd_ax2, fig1)
-
-
-def plot_diags(diag_ax, diags, freqs, max_val, **figargs):
-    """ Fill diagonal plots """
-    ylims = YLIM_SCALE*np.asarray([0, 1])
-    for k in range(diags.shape[0]):
-        diag_ax[k].plot(freqs, diags[k]/max_val, color=figargs['d_color'])
-        diag_ax[k].set_ylim(ylims)
-        diag_ax[k].axes.xaxis.set_ticks([])
-        diag_ax[k].axes.yaxis.set_ticks([])
-
-
-def set_xaxis(ax, freqs, **figargs):
-    """ Set x axis labels and ticks """
-    if figargs['label_bot']:
-        if figargs['num_xtick'] == 1:
-            freq_ticks = (freqs[-1],)
-        elif figargs['num_xtick'] == 2:
-            freq_ticks = (int(freqs[-1]/2), freqs[-1])
-        else:
-            freq_ticks = (freqs[0], int(freqs[-1]/2), freqs[-1])
-
-        ax.set_xticks(freq_ticks)
-        ax.tick_params(axis='x', labelsize=figargs['ticksize'])
-    else:
-        ax.set_xticks(())
-
-def set_yaxis(ax, labels, area, **figargs):
-    """ Set y axis labels """
-    if figargs['label_left']:
-        ax.set_ylabel(area, color='k', fontsize=R_LABEL_SIZE, fontweight='bold', rotation='horizontal', ha='right')
-
-
-def factor_full_gridplot(diags, offdiags, areaList=None, freqs=1, ylabel='', save=False, **figargs):
+def factor_full_gridplot(dir_vals, diag_vals=None, areaList=None, freqs=1, ylabel='', *,
+                         save=None, label_top=True, label_bot=True, label_left=True,
+                         offd_color='b', reg_rotation=-60, reg_xshift=0.1,
+                         xlab_offset=0.01, **figargs):
     """
     Plots a factor in a full grid format.
 
     Parameters
     ----------
-    diags : numpy.ndarray
+    dir_vals : numpy.ndarray
+        Contains the set of features to be plotted in subfigures. If
+        diag_vals is given, then all diagonal elements (i.e. dir_vals[i,i])
+        get ignored. Off diagonal features should have same scale as diag
+        features. Shape: [AxAxF] where A = # of areas; F = # of frequencies
+    diag_vals : numpy.ndarray (optional)
         Contains features that should be plotted in subfigures along the
-        diagonal (e.g. PSD). Shape: [AxF] where A = # of areas; F = # of
-        frequencies
-    offdiags : numpy.ndarray
-        Contains the set of features to be plotted in off-diagonal subfigures.
-        Should have same scale as diag features. Shape: [AxAxF]
-    areaList : list of str
+        diagonal (e.g. PSD). Shape: [AxF]
+    areaList : list of str (optional)
         List of areas that features are generated from.
-    freqs : list or int
-        List of frequencies or scalar frequency sampling spacing (Hz). ...
-    ylabel: string
-        y-axis text label, applied to diags and offdiags.
+    freqs : list or int (optional)
+        List of frequencies or scalar frequency sampling spacing (Hz).
+    ylabel: string (optional)
+        y-axis text label.
+    save: string (optional)
+        Indicates the filename to which the figure will be saved. If
+        None (default), then the figure will not be saved.
+    label_top: bool (optional)
+        Indicates whether to include area labels on top of plot.
+    label_bot: bool (optional)
+        Indicates whether to include frequency labels on bottom of plot.
+    label_left: bool (optional)
+        Indicates whether to include area labels and y-axis label on left
+        of plot.
+    d_color: char (optional)
+        Color for diagonal subplots. Default ('b') produces blue plots.
+    offd_color: char (optional)
+        Color for off-diagonal subplots. Default ('b') produces blue plots.
+    reg_rotation: float (optional)
+        Rotation (in degrees) of region labels on top of plot.
+    reg_xshift: float (optional)
+        Horizontal shift for region labels on top of plot.
+    xlab_offset: float (optional)
+        Vertical offset for x-axis label.
+    figsize: tuple (optional)
+        Sets (width, height) of figure in inches.
+    num_xtick: int (optional)
+        Number of tickmarks to show on x-axis.
+    ticksize: int (optional)
+        Fontsize for frequency (x-axis) labels.
     """
-
     # convert frequencies to array if scalar frequency resolution given
     if np.isscalar(freqs):
         freqs = np.arange(1,F+1,freqs)
 
-    A = diags.shape[0]
+    if not np.any(diag_vals):
+        diag_vals = dir_vals.diagonal().T
+
+    A = dir_vals.shape[0]
     diag_ax, offd_ax, fig = base_gridplot(A, full=True, **figargs)
-    max_val = np.max([np.max(abs(diags)), np.max(abs(offdiags))])
-    plot_diags(diag_ax, diags, freqs, max_val, **figargs)
+    max_val = np.max([np.max(abs(diag_vals)), np.max(abs(dir_vals))])
+    plot_diags(diag_ax, diag_vals, freqs, max_val, **figargs)
 
     # Fill off diagonal plots
     ylims = YLIM_SCALE*np.asarray([0, 1])
     for k in range(A):
         for m in range(A):
             if m != k:
-                offd_ax[k,m].plot(freqs, offdiags[k,m]/max_val, color=figargs['offd_color'])
+                offd_ax[k,m].plot(freqs, dir_vals[k,m]/max_val, color=offd_color)
                 offd_ax[k,m].set_ylim(ylims)
                 offd_ax[k,m].axes.yaxis.set_ticks([])
                 offd_ax[k,m].axes.xaxis.set_ticks([])
 
     # set x axis labels and ticks for bottom row
-    set_xaxis(diag_ax[-1], freqs, **figargs)
+    set_xaxis(diag_ax[-1], freqs, label_bot, **figargs)
     for k in range(A-1):
-        set_xaxis(offd_ax[-1,k], freqs, **figargs)
-    if figargs['label_bot']:
-        fig.supxlabel('Freq. (Hz)', y=figargs['xlab_offset'], fontsize=9)
+        set_xaxis(offd_ax[-1,k], freqs, label_bot, **figargs)
+    if label_bot:
+        fig.supxlabel('Freq. (Hz)', y=xlab_offset, fontsize=9)
 
     # set y axis labels for left column
-    set_yaxis(diag_ax[0], ylabel, areaList[0], **figargs)
+    set_yaxis(diag_ax[0], ylabel, areaList[0], label_left)
     for k in range(1,A):
-        set_yaxis(offd_ax[k,0], ylabel, areaList[k], **figargs)
-    if figargs['label_left']:
+        set_yaxis(offd_ax[k,0], ylabel, areaList[k], label_left)
+    if label_left:
         fig.supylabel(ylabel, x=-0.025, fontsize=9)
 
-    if figargs['label_top']:
+    if label_top:
         # set area title for columns
         diag_ax[0].set_title(areaList[0], fontsize=R_LABEL_SIZE, fontweight='bold',
-                             rotation=figargs['reg_rotation'], x=figargs['reg_xshift'])
+                             rotation=reg_rotation, x=reg_xshift)
         for k in range(1,A):
             offd_ax[0,k].set_title(areaList[k], fontsize=R_LABEL_SIZE, fontweight='bold',
-                                   rotation=figargs['reg_rotation'], x=figargs['reg_xshift'])
-
+                                   rotation=reg_rotation, x=reg_xshift)
 
     if save:
-        plt.savefig(figargs['savename'], transparent=False, bbox_inches='tight')
+        plt.savefig(save, transparent=False, bbox_inches='tight')
     else:
         plt.show()
 
 
 def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
-                    labels=('',), **figargs):
+                    labels=('',), *, label_bot=True, label_left=True, **figargs):
     """
     Plots a factor in an upper triangular grid format
 
@@ -177,11 +144,19 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
         Shape: [AxAxF]
     areaList : list of str
         List of areas that features are generated from.
-    freqs : list or int
+    freqs : list or int (optional)
         List of frequencies or scalar frequency sampling spacing (Hz). ...
-    labels: tuple
+    labels: tuple (optional)
         Tuple of 2 y-axis text labels. First label is applied to diags and
         offdiags1. Second label applies to offdiags2.
+    d_color: char (optional)
+        Color for diagonal subplots. Default ('b') produces blue plots.
+    figsize: tuple (optional)
+        Sets (width, height) of figure in inches.
+    num_xtick: int (optional)
+        Number of tickmarks to show on x-axis.
+    ticksize: int (optional)
+        Fontsize for frequency (x-axis) labels.
     """
 
     # convert frequencies to array if scalar frequency resolution given
@@ -189,7 +164,7 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
         freqs = np.arange(1,F+1,freqs)
 
     A = diags.shape[0]
-    diag_ax, offd_ax1, offd_ax2 = base_gridplot(A, full=False, **figargs)
+    diag_ax, offd_ax1, offd_ax2, fig = base_gridplot(A, full=False, **figargs)
     max_val1 = np.max([np.max(abs(diags)), np.max(abs(offdiags1))])
     plot_diags(diag_ax, diags, freqs, max_val1)
 
@@ -208,8 +183,8 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
 
     # handle legends, fonts, etc.. for diagonal plots
     for k in range(A):
-        set_xaxis(diag_ax[k], freqs, **figargs)
-        set_yaxis(diag_ax[k], labels[0], areaList[k], **figargs)
+        set_xaxis(diag_ax[k], freqs, label_bot, **figargs)
+        set_yaxis(diag_ax[k], labels[0], areaList[k], label_left)
         if k == 0 and areaList is not None:
             diag_ax[0].set_title(areaList[0], fontsize=R_LABEL_SIZE, \
                     fontweight='bold')
@@ -233,30 +208,74 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
     plt.show()
 
 
-def get_factor_features(feature_str, feature_labels, factor):
-    """
-    Return the indicated subset of factor features.
+def base_gridplot(A, full=True, **figargs):
+    """ Generates a figure made up of a grid of subplots. """
+    if 'figsize' in figargs:
+        figsize = figargs['figsize']
+    else:
+        figsize = plt.rcParams["figure.figsize"]
+    fig1, ax = plt.subplots(A, A, constrained_layout=False, figsize=figsize)
 
-    Parameters
-    ----------
-    feature_str : str
-        string indicating type of features to extract
-    feature_labels : list of str
-        list of labels indicating the features represented in 'factor'. These
-        are generated by 'saveFeatures.m' and contained in the labels loaded in
-        by 'load_data'
-    factor : numpy.ndarray
-        components vector, or loadings, from a single factor of a linear factor
-        model. Shape = [Fx1] where F = # number of features
+    diag_ax = np.full(A, None, dtype=object)
+    offd_ax1 = np.full((A,A), None, dtype=object)
+#    fig1 = plt.figure(constrained_layout=False, figsize=figsize)
+#    spec1 = GridSpec(ncols=A, nrows=A, figure=fig1)
+    for k in range(A):
+#        diag_ax[k] = fig1.add_subplot(spec1[k,k])
+        diag_ax[k] = ax[k,k]
 
-    Returns
-    -------
-    factor_features : numpy.ndarray
-        The specified subset of the components vector.
-    """
-    f_list = [findall(feature_str, fl) for fl in feature_labels]
-    f_idx = [bool(x) for x in f_list]
-    return factor[f_idx]
+    # Handle off-diagonal subplots differently for full or upper
+    # triangular plots
+    if full:
+        for k in range(A):
+            for m in range(A):
+                if m != k:
+                    #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
+                    offd_ax1[k,m] = ax[k,m]
+
+        return (diag_ax, offd_ax1, fig1)
+    else:
+        offd_ax2 = np.full((A,A), None, dtype=object)
+        for k in range(A):
+            for m in range(k+1,A):
+                #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
+                #offd_ax2[k,m] = offd_ax1[k,m].twinx()
+                offd_ax1[k,m] = ax[k,m]
+                offd_ax2[k,m] = ax[k,m].twinx()
+
+        return (diag_ax, offd_ax1, offd_ax2, fig1)
+
+
+def plot_diags(diag_ax, diags, freqs, max_val, d_color='b', **figargs):
+    """ Fill diagonal plots """
+    ylims = YLIM_SCALE*np.asarray([0, 1])
+    for k in range(diags.shape[0]):
+        diag_ax[k].plot(freqs, diags[k]/max_val, color=d_color)
+        diag_ax[k].set_ylim(ylims)
+        diag_ax[k].axes.xaxis.set_ticks([])
+        diag_ax[k].axes.yaxis.set_ticks([])
+
+
+def set_xaxis(ax, freqs, label_bot, num_xtick=2, ticksize=8, **figargs):
+    """ Set x axis labels and ticks """
+    if label_bot:
+        if num_xtick == 1:
+            freq_ticks = (freqs[-1],)
+        elif num_xtick == 2:
+            freq_ticks = (int(freqs[-1]/2), freqs[-1])
+        else:
+            freq_ticks = (freqs[0], int(freqs[-1]/2), freqs[-1])
+
+        ax.set_xticks(freq_ticks)
+        ax.tick_params(axis='x', labelsize=ticksize)
+    else:
+        ax.set_xticks(())
+
+
+def set_yaxis(ax, labels, area, label_left):
+    """ Set y axis labels """
+    if label_left:
+        ax.set_ylabel(area, color='k', fontsize=R_LABEL_SIZE, fontweight='bold', rotation='horizontal', ha='right')
 
 
 def get_plot_features(factor, labels, sync_diff=True, no_pow=False, offd_features='ldFeatures'):
@@ -355,6 +374,33 @@ def get_plot_features(factor, labels, sync_diff=True, no_pow=False, offd_feature
     return feature_tup
 
 
+def get_factor_features(feature_str, feature_labels, factor):
+    """
+    Return the indicated subset of factor features.
+
+    Parameters
+    ----------
+    feature_str : str
+        string indicating type of features to extract
+    feature_labels : list of str
+        list of labels indicating the features represented in 'factor'. These
+        are generated by 'saveFeatures.m' and contained in the labels loaded in
+        by 'load_data'
+    factor : numpy.ndarray
+        components vector, or loadings, from a single factor of a linear factor
+        model. Shape = [Fx1] where F = # number of features
+
+    Returns
+    -------
+    factor_features : numpy.ndarray
+        The specified subset of the components vector.
+    """
+    f_list = [findall(feature_str, fl) for fl in feature_labels]
+    f_idx = [bool(x) for x in f_list]
+    return factor[f_idx]
+
+
+
 
 if __name__ == '__main__':
     # Make an example plot with the test data located on teams
@@ -364,9 +410,9 @@ if __name__ == '__main__':
     from sklearn.decomposition import NMF
 
     if len(sys.argv) == 1:
-        type = 'upper'
+        plot_type = 'upper'
     else:
-        type = sys.argv[1]
+        plot_type = sys.argv[1]
 
     power, ld, labels = load_data(os.path.join('testData', 'TeST.mat'), \
             feature_list=['power', 'directionality_pairwise'], f_bounds=(1,50))
@@ -377,9 +423,9 @@ if __name__ == '__main__':
 
     comp = np.squeeze(nmf_model.components_[4])
 
-    if type == 'full':
+    if plot_type == 'full':
         pow_mat, ld_mat = get_plot_features(comp, labels, sync_diff=False)
-        factor_full_gridplot(pow_mat, ld_mat, areaList=labels['area'], \
+        factor_full_gridplot(ld_mat, pow_mat, areaList=labels['area'], \
                              freqs=np.arange(1,51), ylabel=("Power"))
     else:
         pow_mat, sync_mat, diff_mat = get_plot_features(comp, labels, sync_diff=True)
