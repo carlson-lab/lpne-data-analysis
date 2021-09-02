@@ -73,6 +73,9 @@ def factor_full_gridplot(dir_vals, diag_vals=None, areaList=None, freqs=1, ylabe
         Number of tickmarks to show on x-axis.
     ticksize: int (optional)
         Fontsize for frequency (x-axis) labels.
+    hspace: float (optional)
+        Height (ie vertical) spacing between subplots, expressed as a
+        fraction of subplot axis height.
     """
     # convert frequencies to array if scalar frequency resolution given
     if np.isscalar(freqs):
@@ -104,9 +107,9 @@ def factor_full_gridplot(dir_vals, diag_vals=None, areaList=None, freqs=1, ylabe
         fig.supxlabel('Freq. (Hz)', y=xlab_offset, fontsize=9)
 
     # set y axis labels for left column
-    set_yaxis(diag_ax[0], ylabel, areaList[0], label_left)
+    set_yaxis(diag_ax[0], areaList[0], label_left)
     for k in range(1,A):
-        set_yaxis(offd_ax[k,0], ylabel, areaList[k], label_left)
+        set_yaxis(offd_ax[k,0], areaList[k], label_left)
     if label_left:
         fig.supylabel(ylabel, x=-0.025, fontsize=9)
 
@@ -125,7 +128,8 @@ def factor_full_gridplot(dir_vals, diag_vals=None, areaList=None, freqs=1, ylabe
 
 
 def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
-                    labels=('',), *, label_bot=True, label_left=True, **figargs):
+                    labels=('',), *, label_bot=True, label_left=True, y2_ticksize,
+                    xlab_offset=0.01, **figargs):
     """
     Plots a factor in an upper triangular grid format
 
@@ -153,10 +157,17 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
         Color for diagonal subplots. Default ('b') produces blue plots.
     figsize: tuple (optional)
         Sets (width, height) of figure in inches.
+    xlab_offset: float (optional)
+        Vertical offset for x-axis label.
     num_xtick: int (optional)
         Number of tickmarks to show on x-axis.
     ticksize: int (optional)
         Fontsize for frequency (x-axis) labels.
+    y2_ticksize: int (optional)
+        Fontsize for right y-axis labels.
+    hspace: float (optional)
+        Height (ie vertical) spacing between subplots, expressed as a
+        fraction of subplot axis height.
     """
 
     # convert frequencies to array if scalar frequency resolution given
@@ -184,7 +195,7 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
     # handle legends, fonts, etc.. for diagonal plots
     for k in range(A):
         set_xaxis(diag_ax[k], freqs, label_bot, **figargs)
-        set_yaxis(diag_ax[k], labels[0], areaList[k], label_left)
+        set_yaxis(diag_ax[k], areaList[k], label_left)
         if k == 0 and areaList is not None:
             diag_ax[0].set_title(areaList[0], fontsize=R_LABEL_SIZE, \
                     fontweight='bold')
@@ -202,20 +213,20 @@ def factor_gridplot(diags, offdiags1, offdiags2, areaList=None, freqs=1, \
                 offd_ax2[k,m].set_ylabel(labels[1], color='r')
                 offd_ax2[k,m].yaxis.set_label_position("right")
                 offd_ax2[k,m].set_yticks((-1,0,1))
+                offd_ax2[k,m].tick_params(axis='y', labelsize=y2_ticksize)
             else:
                 offd_ax2[k,m].axes.yaxis.set_ticks([])
+    if label_bot:
+        fig.supxlabel('Freq. (Hz)', y=xlab_offset, fontsize=9)
 
     plt.show()
 
 
-def base_gridplot(A, full=True, **figargs):
+def base_gridplot(A, full=True, figsize=plt.rcParams["figure.figsize"],
+                  hspace=plt.rcParams["figure.subplot.hspace"], **figargs):
     """ Generates a figure made up of a grid of subplots. """
-    if 'figsize' in figargs:
-        figsize = figargs['figsize']
-    else:
-        figsize = plt.rcParams["figure.figsize"]
-    fig1, ax = plt.subplots(A, A, constrained_layout=False, figsize=figsize)
-
+    fig1, ax = plt.subplots(A, A, constrained_layout=False, figsize=figsize,
+                            gridspec_kw={'hspace':hspace})
     diag_ax = np.full(A, None, dtype=object)
     offd_ax1 = np.full((A,A), None, dtype=object)
 #    fig1 = plt.figure(constrained_layout=False, figsize=figsize)
@@ -237,11 +248,12 @@ def base_gridplot(A, full=True, **figargs):
     else:
         offd_ax2 = np.full((A,A), None, dtype=object)
         for k in range(A):
-            for m in range(k+1,A):
-                #offd_ax1[k,m] = fig1.add_subplot(spec1[k,m])
-                #offd_ax2[k,m] = offd_ax1[k,m].twinx()
-                offd_ax1[k,m] = ax[k,m]
-                offd_ax2[k,m] = ax[k,m].twinx()
+            for m in range(A):
+                if m>k:
+                    offd_ax1[k,m] = ax[k,m]
+                    offd_ax2[k,m] = ax[k,m].twinx()
+                elif m<k:
+                    ax[k,m].axis('off')
 
         return (diag_ax, offd_ax1, offd_ax2, fig1)
 
@@ -272,10 +284,10 @@ def set_xaxis(ax, freqs, label_bot, num_xtick=2, ticksize=8, **figargs):
         ax.set_xticks(())
 
 
-def set_yaxis(ax, labels, area, label_left):
+def set_yaxis(ax, area, label_left):
     """ Set y axis labels """
     if label_left:
-        ax.set_ylabel(area, color='k', fontsize=R_LABEL_SIZE, fontweight='bold', rotation='horizontal', ha='right')
+        ax.set_ylabel(area, color='k', fontsize=R_LABEL_SIZE, fontweight='bold', rotation='horizontal', ha='right', va='top')
 
 
 def get_plot_features(factor, labels, sync_diff=True, no_pow=False, offd_features='ldFeatures'):
@@ -419,9 +431,9 @@ if __name__ == '__main__':
 
     X, _ = feature_mat(labels, power, ld)
 
-    nmf_model = NMF(n_components=5, init='nndsvdar').fit(X)
+    nmf_model = NMF(n_components=7, init='nndsvdar').fit(X)
 
-    comp = np.squeeze(nmf_model.components_[4])
+    comp = np.squeeze(nmf_model.components_[1])
 
     if plot_type == 'full':
         pow_mat, ld_mat = get_plot_features(comp, labels, sync_diff=False)
@@ -429,7 +441,8 @@ if __name__ == '__main__':
                              freqs=np.arange(1,51), ylabel=("Power"))
     else:
         pow_mat, sync_mat, diff_mat = get_plot_features(comp, labels, sync_diff=True)
-        factor_gridplot(pow_mat, sync_mat, diff_mat, areaList=labels['area'], \
-                             freqs=np.arange(1,51), labels=("Power", "Diff."))
+        factor_gridplot(pow_mat, sync_mat, diff_mat, areaList=labels['area'],
+                        freqs=np.arange(1,51), labels=("Power", "Diff."),
+                        y2_ticksize=7, ticksize=7, hspace=0.7)
 
 ###
