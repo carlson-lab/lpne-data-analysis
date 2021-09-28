@@ -181,23 +181,23 @@ def ld_plot_features(factor, labels):
     diff_mat = np.zeros((A,A,F))
 
     feature_labels = \
-            np.hstack((labels['powerFeatures'], labels['causFeatures']))
+            np.hstack((labels['powerFeatures'], labels['ldFeatures']))
 
     # compile power features
     for k, a in enumerate(labels['area']):
         pow_features = '^' + a + ' [0-9]{1,3}$'
         pow_mat[k] = get_factor_features(pow_features, feature_labels, factor)
 
-        # compile causality features
+        # compile directionality features
         for l, b in enumerate(labels['area'][k+1:]):
-            caus1_features = '^' + a + '->' + b + ' [0-9]{1,3}$'
-            caus1 = get_factor_features(caus1_features, feature_labels, factor)
+            ld1_features = '^' + a + '->' + b + ' [0-9]{1,3}$'
+            ld1 = get_factor_features(ld1_features, feature_labels, factor)
 
-            caus2_features = '^' + b + '->' + a + ' [0-9]{1,3}$'
-            caus2 = get_factor_features(caus2_features, feature_labels, factor)
+            ld2_features = '^' + b + '->' + a + ' [0-9]{1,3}$'
+            ld2 = get_factor_features(ld2_features, feature_labels, factor)
 
-            this_sync = caus1 + caus2
-            this_diff = caus2 - caus1
+            this_sync = ld1 + ld2
+            this_diff = ld2 - ld1
 
             b_idx = k+1+l
             sync_mat[k,b_idx] = this_sync
@@ -215,7 +215,7 @@ if __name__ == '__main__':
     from sklearn.decomposition import NMF
 
     power, ld, labels = load_data(os.path.join('testData', 'TeST.mat'), \
-            feature_list=['power', 'causality'], f_bounds=(1,50))
+            feature_list=['power', 'directionality'], f_bounds=(1,50))
     print("Label keys:", list(labels.keys()))
 
     X, _ = feature_mat(labels, power, ld)

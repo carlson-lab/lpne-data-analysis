@@ -13,35 +13,39 @@ from sklearn.preprocessing import LabelEncoder
 from copy import deepcopy
 import warnings
 
-def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'granger']):
+
+def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directedSpectrum']):
     """ Loads and extracts data from a JSON file with preprocessed data.
-    
+
     Loads the data from the file, then extracts each field, takes only the data
     within the frequency bounds specified by the input f_bounds, and transforms each
     data matrix to be a 2-dimensional matrix where axis 0 is the time window and axis 1
-    iterates first by brain area and then by frequency.
-    
+    iterates first by frequency, then by either area or area pair.
+
     INPUTS
     filename: name of the .mat file containing the data
         and labels variables. The .mat file should contain the fields you
         want to load (e.g. 'power', 'coherence', 'granger'), and the corresponding .json
         file contains labels.
-    feature_list: list of strings indicating which variables to load from the .mat file
+    feature_list: list of strings indicating which variables to load from the .mat file.
+        See the list of OUTPUTS below for values that can be used.
     f_bounds: frequency bounds to analyze; default is set to between 1 and 120 Hz, inclusive.
-    
+
     OUTPUTS
     power: Transformed matrix of power values within the frequency range given by f_bounds
         in the form MxN, where M is time windows and N is a combination of brain area and
         frequency, iterating first frequency then by area.
     coherence: Transformed matrix of coherency values within the frequency range given by
-        f_bounds; same dimensions as power. In this case, brain area refers to the pair of brain
-        areas being compared.
-    granger: Transformed matrix of exponentiated Granger causality values 
-        within the frequency range given by f_bounds; same dimensions as power. 
-        In this case, brain area refers to the pair of brain areas being compared.
-    instant: Transformed matrix of exponentiated instantaneous causality values 
-        within the frequency range given by f_bounds; same dimensions as power. 
-        In this case, brain area refers to the pair of brain areas being compared.
+        f_bounds. MxN array where N iterates over frequency, then undirected pairs of
+        areas.
+    granger: Transformed matrix of Granger causality values 
+        within the frequency range given by f_bounds; MxN array where N iterates over
+        frequency, then directed pairs of areas.
+    directedSpectrum, pwDirectedSpectrum:
+        Transformed matrix of the Linear Directed Spectrum
+        within the frequency range given by f_bounds; same dimensions as granger.
+    instant: Transformed matrix of exponentiated instantaneous causality values
+        within the frequency range given by f_bounds; same dimensions as coherence.
     labels: Structure containing labeling information for the data. 
             FIELDS:
             'windows': Structure containing information on windows.
@@ -130,7 +134,6 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
             else:
                 print('Coherence features calculated using unknown version')
 
-
         if ft == 'granger':
             gcFIdx = [k+1 for k in fIdx]
 
@@ -156,26 +159,6 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
             else:
                 print('Granger features calculated using unknown version')
 
-        if ft == 'causality':
-            acFIdx = [k+1 for k in fIdx]
-
-            acArray = np.asarray(features[k])
-            acArray = acArray[:, acFIdx, :]
-            features[k] = np.transpose(acArray, (1,2,0))
-
-            a,b,c = features[k].shape
-            features[k] = features[k].reshape(a*b, c, order='F').T
-
-            # put on same scale as power features
-            features[k] = features[k] / labels['fs']
-            
-            if 'causFeatures' in labels.keys():
-                # reshape corresponding array of feature labels
-                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
-                gf = np.asarray(labels['causFeatures'])
-                gf = gf[:, acFIdx].T
-                labels['causFeatures'] = gf.reshape(a*b, order='F')
-
 
         if ft == 'instant':
             gcFIdx = [k+1 for k in fIdx]
@@ -194,6 +177,131 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
                 ift = np.asarray(labels['instFeatures'])
                 ift = ift[:, gcFIdx].T
                 labels['instFeatures'] = ift.reshape(a*b, order='F')
+
+        if ft in ['directedSpectrum', 'pwDirectedSpectrum']:
+            ldFIdx = [k+1 for k in fIdx]
+
+            ldArray = np.asarray(features[k])
+            features[k] = ldArray[:, ldFIdx]
+
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a, b*c, order='F')
+
+            if 'ldFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                ldf = np.asarray(labels['ldFeatures'])
+                ldf = ldf[:,ldFIdx].T
+                labels['ldFeatures'] = ldf.reshape(b*c, order='F')
+
+            if 'ldVersion' in labels.keys():
+                d_version = labels['ldVersion']
+                print('version {0} used to calcuate directedSpectrum features'
+                      .format(d_version))
+            else:
+                print('Directed Spectrum features calculated using unknown version')
+
+        if ft == 'psi':
+            psiArray = np.asarray(features[k])
+            features[k] = psiArray[:, fIdx]
+
+            # collect indices of non-diagional entries
+            r1, c1 = np.triu_indices( features[k].shape[-1], k=1)
+            up_features = features[k][..., r1,c1]
+            r2, c2 = np.tril_indices( features[k].shape[-1], k=-1)
+            low_features = features[k][..., r2,c2]
+
+            features[k] = np.concatenate((up_features, low_features), axis=2)
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a, b*c, order='F')
+
+            if 'psiFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                psif = np.asarray(labels['psiFeatures']).T
+                psif = psif[fIdx]
+
+                # collect indices of non-diagional entries
+                upf = psif[..., r1,c1]
+                lowf = psif[..., r2,c2]
+                psif = np.concatenate((upf, lowf), axis=1)
+
+                labels['psiFeatures'] = psif.reshape(b*c, order='F')
+
+            if 'psiVersion' in labels.keys():
+                d_version = labels['psiVersion']
+                print('version {0} used to calcuate PSI features'
+                      .format(d_version))
+            else:
+                print('PSI features calculated using unknown version')
+
+        if ft == 'pdc':
+            pdcArray = np.asarray(features[k])
+            features[k] = pdcArray[:, fIdx]
+
+            # collect indices of non-diagional entries
+            r1, c1 = np.triu_indices( features[k].shape[-1], k=1)
+            up_features = features[k][..., r1,c1]
+            r2, c2 = np.tril_indices( features[k].shape[-1], k=-1)
+            low_features = features[k][..., r2,c2]
+
+            features[k] = np.concatenate((up_features, low_features), axis=2)
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a, b*c, order='F')
+
+            if 'pdFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                pdcf = np.asarray(labels['pdFeatures']).T
+                pdcf = pdcf[fIdx]
+
+                # collect indices of non-diagional entries
+                upf = pdcf[..., r1,c1]
+                lowf = pdcf[..., r2,c2]
+                pdcf = np.concatenate((upf, lowf), axis=1)
+
+                labels['pdcFeatures'] = pdcf.reshape(b*c, order='F')
+
+            if 'pdVersion' in labels.keys():
+                d_version = labels['pdVersion']
+                print('version {0} used to calcuate PSI features'
+                      .format(d_version))
+            else:
+                print('PDC features calculated using unknown version')
+
+        if ft == 'dtf':
+            dtfArray = np.asarray(features[k])
+            features[k] = dtfArray[:, fIdx]
+
+            # collect indices of non-diagional entries
+            r1, c1 = np.triu_indices( features[k].shape[-1], k=1)
+            up_features = features[k][..., r1,c1]
+            r2, c2 = np.tril_indices( features[k].shape[-1], k=-1)
+            low_features = features[k][..., r2,c2]
+
+            features[k] = np.concatenate((up_features, low_features), axis=2)
+            a,b,c = features[k].shape
+            features[k] = features[k].reshape(a, b*c, order='F')
+
+            if 'pdFeatures' in labels.keys():
+                # reshape corresponding array of feature labels
+                # MAKE SURE THESE OPERATIONS CORRESPOND TO OPERATIONS ON ACTUAL FEATURES ABOVE
+                dtff = np.asarray(labels['pdFeatures']).T
+                dtff = dtff[fIdx]
+
+                # collect indices of non-diagional entries
+                upf = dtff[..., r1,c1]
+                lowf = dtff[..., r2,c2]
+                dtff = np.concatenate((upf, lowf), axis=1)
+
+                labels['dtfFeatures'] = dtff.reshape(b*c, order='F')
+
+            if 'pdVersion' in labels.keys():
+                d_version = labels['pdVersion']
+                print('version {0} used to calcuate PSI features'
+                      .format(d_version))
+            else:
+                print('DTF features calculated using unknown version')
 
 
         if ft == 'xFft':
@@ -222,7 +330,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'coherence', 'gr
         print('Using data that was preprocessed with unknown preprocessing version. '
               'Please make sure all datasets in the same project were preprocessed '
               'the same way.')
-        
+
     features.append(labels)
 
     return tuple(features)
@@ -239,8 +347,8 @@ def get_labels(labels, variable_name = 'task'):
     y: task labels for each window '''
 
     task_strings = labels['windows'][variable_name]
-    y = LabelEncoder().fit_transform(task_strings)    
-    return y 
+    y = LabelEncoder().fit_transform(task_strings)
+    return y
 
 
 def data_subset(condition, *args):
@@ -341,7 +449,7 @@ def scale_by_freq(x, f):
     x = x*f
     return x
 
-def feature_mat(labels, power, caus=None, f_scale=True):
+def feature_mat(labels, power, lds=None, f_scale=True):
     w = power.shape[0]
     f = labels['f']
 
@@ -351,19 +459,21 @@ def feature_mat(labels, power, caus=None, f_scale=True):
         power = power.reshape((power.shape[0],-1,len(f)))
     p_scale = np.zeros(power.shape[1:])
 
-    if caus is not None:
+    if lds is not None:
         if f_scale:
-            caus = scale_by_freq(caus, f)
+            lds = scale_by_freq(lds, f)
         else:
-            caus = caus.reshape((caus.shape[0],-1,len(f)))
+            lds = lds.reshape((lds.shape[0],-1,len(f)))
 
-        pair_id = [cl.split()[0] for cl in labels['causFeatures']]
+        ldFeatStr = 'ldFeatures'
+
+        pair_id = [cl.split()[0] for cl in labels[ldFeatStr]]
         pair_list, pair_idx = np.unique(pair_id, return_index=True)
         pair_list = pair_list[np.argsort(pair_idx)]
 
-        c_scale = np.zeros(caus.shape[1:])
+        d_scale = np.zeros(lds.shape[1:])
 
-    # for each region, scale corresponding power/causalities
+    # for each region, scale corresponding power/directionalities
     for a, area in enumerate(labels['area']):
         this_rms = np.sqrt(np.mean(power[:,a]**2))
         power[:,a] /= this_rms
@@ -372,24 +482,24 @@ def feature_mat(labels, power, caus=None, f_scale=True):
         else:
             p_scale[a] = 1/this_rms
 
-        if caus is not None:
+        if lds is not None:
             for p, pair in enumerate(pair_list):
                 if pair.split('->')[1] == area:
-                    caus[:,p] /= this_rms
+                    lds[:,p] /= this_rms
 
                     if f_scale:
-                        c_scale[p] = f/this_rms
+                        d_scale[p] = f/this_rms
                     else:
-                        c_scale[p] = 1/this_rms
+                        d_scale[p] = 1/this_rms
 
     power = power.reshape((w,-1))
     p_scale = p_scale.reshape((-1))
 
-    if caus is not None:
-        caus = caus.reshape((w,-1))
-        c_scale = c_scale.reshape((-1))
-        X, feat_weights = concat_features((power, caus), return_weights=True)
-        feat_weights = np.concatenate((feat_weights[0]*p_scale, feat_weights[1]*c_scale))
+    if lds is not None:
+        lds = lds.reshape((w,-1))
+        d_scale = d_scale.reshape((-1))
+        X, feat_weights = concat_features((power, lds), return_weights=True)
+        feat_weights = np.concatenate((feat_weights[0]*p_scale, feat_weights[1]*d_scale))
     else:
         X = power
         feat_weights = p_scale
