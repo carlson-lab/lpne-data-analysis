@@ -220,6 +220,8 @@ if any(ismember('causality', options.featureList))
     % generate additive Granger causality values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
+    warning('You should be using the condiational_lsd branch of this repository if you want to calculate Directed Spectrum features!!!')
+  
     X = double(X);
     [causality, causFeatures, S] = additive_causality(X, labels.area, fs, f, windowSize,...
         options.parCores);
