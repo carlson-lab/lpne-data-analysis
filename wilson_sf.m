@@ -59,7 +59,7 @@
 function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
   MAX_ITER = 500;
 
-  if (nargin < 3) || isempty(tol), tol = 1e-9; end
+  if (nargin < 3) || isempty(tol), tol = 1e-4; end
 	assert(isscalar(fs) && (fs > 0), ...
 		'fs must be a positive scalar value representing the sampling rate. ');
 	
@@ -75,7 +75,10 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 
 	U = zeros(size(Sarr));
 	for j = 1 : M
-		U(:,:,j) = chol(Sarr(:,:,j) + eye(size(Sarr, 1))*2*eps);
+        %U(:,:,j) = chol(Sarr(:,:,j) + eye(size(Sarr, 1))*2*eps);
+        [L, D] = eig(Sarr(:,:,j));
+        D(D<0) = 0;
+		U(:,:,j) =  sqrt(D) * L';
 	end
 
 	niter = 0;
@@ -117,8 +120,7 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 		H(:,:,i) = ps(:,:,i)/ps0;
 	end
 	
-	ps = sqrt(fs)*ps(:,:,1:N);
-	ps0 = sqrt(fs)*ps0;
+	ps = ps(:,:,1:N);
 	Z = ps0*ps0';
     
     if ~converged
