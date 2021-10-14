@@ -1,5 +1,4 @@
-function [gcArray, gcFeatures, instArray, instFeatures] = ...
-    g_causality(data, areaList, fs, options)
+function [gcArray, gcFeatures] = g_causality(data, areaList, fs, options)
 % Frequency-domain granger causality
 %    Estimates frequency-domain granger causality from x->y and y->x.
 %    Estimates are given for all frequency bands given by f.
@@ -53,24 +52,13 @@ else
     % run through loop once using all windows
     W = 1;
     C = size(data,1);
-    thisData = data;
 end
 
-channelPairs = combnk(1:C, 2)';
-
-% number of directed and undirected pairs
-nCP = size(channelPairs, 2);
-
-% generate list of strings for frequencies
-fStrings = compose('%d', f)';
+% number of directed pairs
+nCP = 2*nchoosek(C, 2)';
 
 % initialize arrays to be filled in loop below
-gcArray12 = zeros(1, nCP, F, W, 'single');
-gcArray21 = zeros(1, nCP, F, W, 'single');
-gcFeatures12 = cell(1, nCP, F);
-gcFeatures21 = cell(1, nCP, F);
-instArray = zeros(nCP, F, W, 'single');
-instFeatures = cell(nCP, F);
+gcArray = zeros(nCP, F, W, 'single');
 
 % estimate model order (using a subset of the data to conserve memory)
 if W > options.ordSampleMaxW
@@ -78,147 +66,58 @@ if W > options.ordSampleMaxW
 else
     sampledData = data;
 end
-[~,BIC] = tsdata_to_infocrit(sampledData, options.maxOrder, []);
-[~,order] = min(BIC);
+[~,~,~,order] = tsdata_to_infocrit(sampledData, options.maxOrder, [], false);
 
 if options.parCores, pp = parpool([2 options.parCores]); end
 a = tic;
+%parfor (w = 1:W, options.parCores)
 for w = 1:W
     if options.separateWindows
         thisData = data(:, :, w);
-        fprintf('Starting window %d: %2.1fs elapsed\n', w, toc(a))
+        %fprintf('Starting window %d: %2.1fs elapsed\n', w, toc(a))
+    else
+        error('Not built for all windows together!')
     end
 
-    parfor (cp = 1:nCP, options.parCores)
-        c1 = channelPairs(1,cp); c2 = channelPairs(2,cp);
-        
-        % estimate spectral Granger causality in both directions
-        % and instantaneous Granger causality
-        [gc12, gc21, inst]= calculateSpectralGC(thisData([c1 c2],:,:), 1, 2, order, F-1);
-        
-        % fill in output array
-        gcArray12(1,cp,:,w) = gc12; gcArray21(1,cp,:,w) = gc21;
-        instArray(cp,:,w) = inst;
-        
-        if w==1
-            % save labels corresponing to each element of feature arrays above
-            gcFeatures12(1, cp,:) = cellfun(@(x) [areaList{c1} '->' areaList{c2} ' ' x], ...
-                fStrings, 'UniformOutput', false);
-            gcFeatures21(1, cp,:) = cellfun(@(x) [areaList{c2} '->' areaList{c1} ' ' x], ...
-                fStrings, 'UniformOutput', false);
-            instFeatures(cp,:) =  cellfun(@(x) [areaList{c1} '*' areaList{c2} ' ' x], ...
-                fStrings, 'UniformOutput', false);
-        end
+    % estimate VAR model
+    [A,SIG] = tsdata_to_var(thisData, order);
+    if warn_if(isbad(A),'in full regression - regression failed'), end
+
+    % estimate autocovariance from VAR model
+    [G, info] = var_to_autocov(A, SIG, [], options.acDecayTol);
+    var_info(info, true);
+    if info.error
+        fprintf(2,' *** skipping - bad VAR (%s)\n',info.errmsg);
+        continue
     end
+    if info.aclags < info.acminlags % warn if number of autocov lags is too small (not a show-stopper)
+        fprintf(2,' *** WARNING: minimum %d lags required (decay factor = %e)',info.acminlags,realpow(info.rho,info.aclags));
+    end
+
+    thisGC = autocov_to_spwcgc(G, F-1);
+    assert(isreal(thisGC))
+    gcArray(:,:,w) = reshape(thisGC(~isnan(thisGC)), [], F);
     
+    fprintf('window completed - %.3fs elapsed\n', toc(a))
 end
 if options.parCores, delete(pp), end
 
-%% combine values down here
-gcArray = reshape([gcArray12; gcArray21], 2*nCP, F, W);
-gcFeatures = reshape([gcFeatures12; gcFeatures21], 2*nCP, F);
+toc(a)
+
+% save labels corresponing to each element of feature arrays above
+% generate list of strings for frequencies
+fStrings = reshape(string(compose('%d', f)), 1, 1, []);
+preFeatures = areaList + "->" + areaList' + " " + fStrings;
+diagMask = repmat(eye(length(areaList), 'logical'), 1, 1, length(fStrings));
+preFeatures(diagMask) = "";
+gcFeatures = reshape(preFeatures(preFeatures~=""), [], F);
 end
 
 function opts = fillDefaultOpts(opts)
-if ~isfield(opts,'maxOrder'), opts.maxOrder = 50; end
+if ~isfield(opts,'maxOrder'), opts.maxOrder = 20; end
 if ~isfield(opts,'separateWindows'), opts.separateWindows = true; end
 if ~isfield(opts,'parCores'), opts.parCores = 0; end
-if ~isfield(opts,'ordSampleMaxW'), opts.ordSampleMaxW = 1000; end    
-end
-
-function [fxy, fyx, finst] = calculateSpectralGC(U,x,y,p,fres,regmode)
-%% calculateSpectralGC
-%
-% Calculate _unconditional_ frequency-domain MVGC (spectral multivariate
-% Granger causality) from time series data by "traditional" method (as e.g.
-% in GCCA toolbox)
-%
-% Adapted from the MVGC toolbox developed by Lionel Barnett and Anil K. Seth, 2012
-%
-%% Syntax
-%
-%     f = calculateSpectralGC(U,x,y,p,fres,regmode)
-%
-%% Arguments
-%
-% _input_
-%
-%     U          multi-trial time series data
-%     x          vector of indices of target (causee) multi-variable
-%     y          vector of indices of source (causal) multi-variable
-%     p          model order (number of lags)
-%     fres       frequency resolution
-%     regmode    regression mode (default as in 'tsdata_to_var')
-%
-% _output_
-%
-%     f          unconditional spectral Granger causality
-%
-%% Description
-%
-% Returns the _unconditional_ frequency-domain (spectral) MVGC
-% from the variable |Y| to the variable |X|, and vice versa, in the time 
-% series data |U|, for model order |p|. Also calculated is the instantaneous
-%
-% Spectral causality is calculated up to the Nyqvist frequency at a
-% resolution |fres|. Call |freqs = <sfreqs.html sfreqs>(fres,fs)|, where
-% |fs| is the sampling rate, to get a corresponding vector |freqs| of
-% frequencies on |[0,fs/2]|. The regression mode is set by the |regmode|
-% parameter, which may be |'LWR'| or |'OLS'| (see <tsdata_to_var.html
-% |tsdata_to_var|> for details and defaults).
-%
-%%
-if nargin < 6, regmode = []; end % ensure 'tsdata_to_var' default
-
-n = size(U,1);
-
-x = x(:)'; % vectorise
-y = y(:)'; % vectorise
-
-assert(all(x >=1 & x <= n),'some x indices out of range');
-assert(all(y >=1 & y <= n),'some y indices out of range');
-assert(isempty(intersect(x,y)),'x and y indices must be distinct');
-
-z = 1:n; z([x y]) = []; % indices of other variables (to condition out)
-
-h = fres+1;
-%f = nan(h,1);
-
-assert(isempty(z),'conditional spectral MVGC not available in GCCA mode');
-
-xy = [x y];
-
-U = U(xy,:,:); % extract variables, rearrange
-
-nx = length(x);
-n = length(xy);
-x = 1:nx;
-y = nx+1:n;
-
-owstate = warn_supp;
-[A,SIG] = tsdata_to_var(U,p,regmode);        % full regression
-warn_test(owstate,  'in full regression - data non-stationary or colinear?');
-if warn_if(isbad(A),'in full regression - regression failed'), return; end % show-stopper!
-
-owstate = warn_supp;
-[S,H] = var_to_cpsd(A,SIG,fres);             % spectrum & transfer function
-warn_test(owstate,  'in spectral calculation');
-if warn_if(isbad(S),'in spectral calculation - calculation failed'), return; end % show-stopper!
-
-Sxx = S(x,x,:);
-Hxy = H(x,y,:);
-SIGyx = SIG(y,y)-(SIG(y,x)/SIG(x,x))*SIG(x,y); % partial covariance
-
-Syy = S(y,y,:);
-Hyx = H(y,x,:);
-SIGxy = SIG(x,x)-(SIG(x,y)/SIG(y,y))*SIG(y,x);
-
-fyx = zeros(1,h); fxy = zeros(1,h); finst = zeros(1,h);
-for k = 1:h
-    SyyIntrinsic = real(det(Syy(:,:,k)-Hyx(:,:,k)*SIGxy*Hyx(:,:, k)'));
-    SxxIntrinsic = real(det(Sxx(:,:,k)-Hxy(:,:,k)*SIGyx*Hxy(:,:, k)'));
-    fyx(k) = log(real(det(Sxx(:,:,k)))) - log(SxxIntrinsic);
-    fxy(k) = log(real(det(Syy(:,:,k)))) - log(SyyIntrinsic);
-    finst(k) = log(SxxIntrinsic) + log(SyyIntrinsic) - log(real(det(S(:,:,k))));
-end
+if ~isfield(opts,'ordSampleMaxW'), opts.ordSampleMaxW = 1000; end
+%if ~isfield(opts,'acMaxLags'), opts.acMaxLags = 1000; end
+if ~isfield(opts,'acDecayTol'), opts.acDecayTol = 1e-5; end
 end

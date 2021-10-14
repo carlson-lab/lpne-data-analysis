@@ -235,7 +235,7 @@ end
 
 %% Get Granger causality features
 
-if any(ismember('granger', options.featureList))
+if any(ismember('c_granger', options.featureList))
     mvgcStartupScript = [options.mvgcFolder '/startup.m'];
     run(mvgcStartupScript)
 
@@ -251,16 +251,14 @@ if any(ismember('granger', options.featureList))
     % generate Granger causality values matrix in the form MxPxQ, where M
     % iterates over pairs of brain regions, P is frequency, and Q is time
     % window.
-    [granger, gcFeatures, instant, instFeatures] = g_causality(X_filt, labels.area, fs, ...
+    [c_granger, gcFeatures] = g_causality(X_filt, labels.area, fs, ...
                                                                options);
-    granger = single(granger);
+    c_granger = single(c_granger);
     labels.gcFeatures = string(gcFeatures);
-    instant = single(instant);
-    labels.instFeatures = string(instFeatures);
 
     labels.gcVersion = options.version.granger;
 
-    save(saveFile, 'granger', 'instant', '-append')
+    save(saveFile, 'c_granger', '-append')
 end
 
 %% Get directed spectrum features
