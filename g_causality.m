@@ -70,8 +70,8 @@ end
 
 if options.parCores, pp = parpool([2 options.parCores]); end
 a = tic;
-%parfor (w = 1:W, options.parCores)
-for w = 1:W
+parfor (w = 1:W, options.parCores)
+%for w = 1:W
     if options.separateWindows
         thisData = data(:, :, w);
         %fprintf('Starting window %d: %2.1fs elapsed\n', w, toc(a))
@@ -84,8 +84,8 @@ for w = 1:W
     if warn_if(isbad(A),'in full regression - regression failed'), end
 
     % estimate autocovariance from VAR model
-    [G, info] = var_to_autocov(A, SIG, [], options.acDecayTol);
-    var_info(info, true);
+    [G, info] = var_to_autocov(A, SIG, options.acMaxLags, options.acDecayTol);
+    %var_info(info, true);
     if info.error
         fprintf(2,' *** skipping - bad VAR (%s)\n',info.errmsg);
         continue
@@ -118,6 +118,6 @@ if ~isfield(opts,'maxOrder'), opts.maxOrder = 20; end
 if ~isfield(opts,'separateWindows'), opts.separateWindows = true; end
 if ~isfield(opts,'parCores'), opts.parCores = 0; end
 if ~isfield(opts,'ordSampleMaxW'), opts.ordSampleMaxW = 1000; end
-%if ~isfield(opts,'acMaxLags'), opts.acMaxLags = 1000; end
+if ~isfield(opts,'acMaxLags'), opts.acMaxLags = 3000; end
 if ~isfield(opts,'acDecayTol'), opts.acDecayTol = 1e-5; end
 end
