@@ -95,7 +95,7 @@ parfor (w = 1:W, options.parCores)
     end
 
     thisGC = autocov_to_spwcgc(G, F-1);
-    assert(isreal(thisGC))
+    %assert(isreal(thisGC))
     gcArray(:,:,w) = reshape(thisGC(~isnan(thisGC)), [], F);
     
     fprintf('window completed - %.3fs elapsed\n', toc(a))
@@ -118,6 +118,6 @@ if ~isfield(opts,'maxOrder'), opts.maxOrder = 20; end
 if ~isfield(opts,'separateWindows'), opts.separateWindows = true; end
 if ~isfield(opts,'parCores'), opts.parCores = 0; end
 if ~isfield(opts,'ordSampleMaxW'), opts.ordSampleMaxW = 1000; end
-if ~isfield(opts,'acMaxLags'), opts.acMaxLags = 3000; end
+if ~isfield(opts,'acMaxLags'), opts.acMaxLags = []; end
 if ~isfield(opts,'acDecayTol'), opts.acDecayTol = 1e-5; end
 end
