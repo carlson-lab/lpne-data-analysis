@@ -25,7 +25,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directedSpectru
     INPUTS
     filename: name of the .mat file containing the data
         and labels variables. The .mat file should contain the fields you
-        want to load (e.g. 'power', 'coherence', 'granger'), and the corresponding .json
+        want to load (e.g. 'power', 'coherence', 'c_granger'), and the corresponding .json
         file contains labels.
     feature_list: list of strings indicating which variables to load from the .mat file.
         See the list of OUTPUTS below for values that can be used.
@@ -38,7 +38,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directedSpectru
     coherence: Transformed matrix of coherency values within the frequency range given by
         f_bounds. MxN array where N iterates over frequency, then undirected pairs of
         areas.
-    granger: Transformed matrix of Granger causality values 
+    c_granger: Transformed matrix of Granger causality values 
         within the frequency range given by f_bounds; MxN array where N iterates over
         frequency, then directed pairs of areas.
     directedSpectrum, pwDirectedSpectrum:
@@ -134,7 +134,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directedSpectru
             else:
                 print('Coherence features calculated using unknown version')
 
-        if ft == 'granger':
+        if ft == 'c_granger':
             gcFIdx = [k+1 for k in fIdx]
 
             gcArray = np.asarray(features[k])

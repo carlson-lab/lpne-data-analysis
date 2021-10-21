@@ -96,7 +96,7 @@ parfor (w = 1:W, options.parCores)
 
     thisGC = autocov_to_spwcgc(G, F-1);
     %assert(isreal(thisGC))
-    gcArray(:,:,w) = reshape(thisGC(~isnan(thisGC)), [], F);
+    gcArray(:,:,w) = real(reshape(thisGC(~isnan(thisGC)), [], F));
     
     fprintf('window completed - %.3fs elapsed\n', toc(a))
 end
