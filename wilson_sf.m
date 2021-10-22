@@ -61,8 +61,8 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 
   if (nargin < 3) || isempty(tol), tol = 1e-4; end
 	assert(isscalar(fs) && (fs > 0), ...
-		'fs must be a positive scalar value representing the sampling rate. ');
-	
+		"fs must be a positive scalar value representing the sampling rate. ");
+
 	[k, ~, N] = size(S);
 	Sarr = cat(3, S, conj(S(:, :, N-1:-1:2)));
 	ps0 = ps0_initial__(Sarr);
@@ -75,10 +75,10 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 
 	U = zeros(size(Sarr));
 	for j = 1 : M
-        %U(:,:,j) = chol(Sarr(:,:,j) + eye(size(Sarr, 1))*2*eps);
-        [L, D] = eig(Sarr(:,:,j));
-        D(D<0) = 0;
-		U(:,:,j) =  sqrt(D) * L';
+    U(:,:,j) = chol(Sarr(:,:,j) + eye(size(Sarr, 1))*2*eps);
+    %[L, D] = eig(Sarr(:,:,j));
+    %D(D<0) = 0;
+		%U(:,:,j) =  sqrt(D) * L';
 	end
 
 	niter = 0;
