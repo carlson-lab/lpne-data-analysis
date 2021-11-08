@@ -312,53 +312,53 @@ if any(directionFeatures)
     end
 end
 
-%% Phase slope index, partial directed coherence and directed transfer function
-% if ismember('psi', options.featureList)
-%     segleng = fs; % 1 Hz frequency resolution
-%     fBins = [f(1:end-1)', (f(1:end-1)'+1), (f(1:end-1)'+2)];
-%     
-%     % create feature labels
-%     psiFeatures = cell(C,C,nFreq-1);
-%     psiFeatures(:) = {''};
-%     areaList = labels.area;
-%     for c1 = 1:C
-%         for c2 = 1:C
-%             if c1==c2, continue, end
-%             % save feature labels for this pair of regions
-%             psiFeatures(c1,c2,:) = cellfun(@(x) [areaList{c1} '~>' areaList{c2} ' ' x], ...
-%                 fStrings(1:end-1), 'UniformOutput', false);
-%         end
-%     end
-%     
-%     labels.psiFeatures = string(psiFeatures);
-%     labels.psiVersion = 'saveFeatures_1.6';
-%     
-%     if options.parCores, pp = parpool([2 options.parCores]); end
-%     
-%     % calculate psi for eac window
-%     psi = zeros(C,C,nFreq-1,W, 'single');
-%     parfor (w = 1:W, options.parCores)
-%         thisData = X(:,:,w);
-%         psi(:,:,:,w) = data2psi(thisData, segleng, [], fBins);
-%     end
-%     if options.parCores, delete(pp), end
-%     
-%     save(saveFile, 'psi', '-append')
-% end
-% 
-% if any(ismember({'pdc','dtf'}, options.featureList))
-%     % generate directed spectrum values matrix in the form MxPxQ, where M
-%     % iterates over pairs of brain regions, P is frequency, and Q is time
-%     % window.
-%     X = double(X);
-%     
-%     [pdc, dtf, pdFeatures] = pdc_dtf(X, labels.area, fs, f, options);
-%     
-%     labels.pdFeatures = string(pdFeatures);
-%     labels.pdVersion = 'saveFeatures_1.6';
-%     
-%     save(saveFile, 'pdc', 'dtf', '-append')
-% end
+% Phase slope index, partial directed coherence and directed transfer function
+ if ismember('psi', options.featureList)
+     segleng = fs; % 1 Hz frequency resolution
+     fBins = [f(1:end-1)', (f(1:end-1)'+1), (f(1:end-1)'+2)];
+     
+     % create feature labels
+     psiFeatures = cell(C,C,nFreq-1);
+     psiFeatures(:) = {''};
+     areaList = labels.area;
+     for c1 = 1:C
+         for c2 = 1:C
+             if c1==c2, continue, end
+             % save feature labels for this pair of regions
+             psiFeatures(c1,c2,:) = cellfun(@(x) [areaList{c1} '~>' areaList{c2} ' ' x], ...
+                 fStrings(1:end-1), 'UniformOutput', false);
+         end
+     end
+     
+     labels.psiFeatures = string(psiFeatures);
+     labels.psiVersion = 'saveFeatures_1.6';
+     
+     if options.parCores, pp = parpool([2 options.parCores]); end
+     
+     % calculate psi for eac window
+     psi = zeros(C,C,nFreq-1,W, 'single');
+     parfor (w = 1:W, options.parCores)
+         thisData = X(:,:,w);
+         psi(:,:,:,w) = data2psi(thisData, segleng, [], fBins);
+     end
+     if options.parCores, delete(pp), end
+     
+     save(saveFile, 'psi', '-append')
+ end
+ 
+ if any(ismember({'pdc','dtf'}, options.featureList))
+     % generate directed spectrum values matrix in the form MxPxQ, where M
+     % iterates over pairs of brain regions, P is frequency, and Q is time
+     % window.
+     X = double(X);
+     
+     [pdc, dtf, pdFeatures] = pdc_dtf(X, labels.area, fs, f, options);
+     
+     labels.pdFeatures = string(pdFeatures);
+     labels.pdVersion = 'saveFeatures_1.6';
+     
+     save(saveFile, 'pdc', 'dtf', '-append')
+ end
 
 
 %% Take Fourier transform of data

@@ -134,7 +134,7 @@ def load_data(filename, f_bounds=(1,56), feature_list=['power', 'directedSpectru
             else:
                 print('Coherence features calculated using unknown version')
 
-        if ft == 'c_granger':
+        if ft in ['granger','c_granger', 'iDiff']:
             gcFIdx = [k+1 for k in fIdx]
 
             gcArray = np.asarray(features[k])
