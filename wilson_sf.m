@@ -58,6 +58,7 @@
 %
 function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
   MAX_ITER = 500;
+  EPS_MULTIPLIER = 100;
 
   if (nargin < 3) || isempty(tol), tol = 1e-4; end
 	assert(isscalar(fs) && (fs > 0), ...
@@ -75,7 +76,9 @@ function [H, Z, ps, ps0, converged, relerr] = wilson_sf(S, fs, tol)
 
 	U = zeros(size(Sarr));
 	for j = 1 : M
-    U(:,:,j) = chol(Sarr(:,:,j) + eye(size(Sarr, 1))*2*eps);
+    thisS = Sarr(:,:,j);
+    this_eps = max(eps(thisS), [],'all');
+    U(:,:,j) = chol(thisS + eye(size(Sarr, 1))*EPS_MULTIPLIER*this_eps);
     %[L, D] = eig(Sarr(:,:,j));
     %D(D<0) = 0;
 		%U(:,:,j) =  sqrt(D) * L';

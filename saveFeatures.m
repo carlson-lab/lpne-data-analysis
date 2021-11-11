@@ -140,11 +140,13 @@ welchFeatures = {'power','coherence','directedSpectrum'};
 calcWFeatures = ismember(welchFeatures, options.featureList);
 changeWelchVersion = [false; false; false];
 for k = 1:length(calcWFeatures)
-   if calcWFeatures(k)
-      if ~(str2double(options.version.(welchFeatures{k})(end-2:end)) >= 1.6)
-          changeWelchVersion(k) = true;
+    if calcWFeatures(k)
+      thisVersion = options.version.(welchFeatures{k});
+      if contains(thisVersion, 'saveFeatures') && ...
+        ~(str2double(thisVersion(end-2:end)) >= 1.6)
+            changeWelchVersion(k) = true;
       end
-   end
+    end
 end
 if any(changeWelchVersion)
     warning(['Power, coherence, and Directed Spectrum versions saveFeatures_1.5 and '...
