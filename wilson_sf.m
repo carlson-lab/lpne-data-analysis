@@ -136,7 +136,7 @@ function ps0 = ps0_initial__(Sarr)
 	
 	% perform ifft to obtain gammas.
 	Sarr = reshape(Sarr, [k*k, M]);
-	gamma = fft(transpose(Sarr));
+	gamma = ifft(transpose(Sarr));
 	gamma0 = gamma(1,:);
 	gamma0 = reshape(gamma0, [k k]);
 	
