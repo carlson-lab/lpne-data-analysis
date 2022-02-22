@@ -247,11 +247,18 @@ def data_subset(condition, *args):
     """ Returns a subset of the given data.
 
     INPUTS
-    x: numpy array of data (WxF) where W is number of windows and F is number of features
-    labels: labels variable from preprocessed data
-    condition: boolean list/vector of length W
+    condition: list of indices of x to keep (length W). If your data is preprocessed, these indices  
+        must be the indices for the filtered data, not the original indices for all of the windows
     args: optional arguments which may be numpy arrays with first dimension
-        equal to W, or may be labels variable from preprocessed data
+        equal to W (such as the stacked features), or may be labels variable from preprocessed data. 
+        
+    EXAMPLE
+        data_subset(condition, X, labels)
+        
+    OUTPUTS
+    The function will return the args in the order that you fed them into the function. They will only have the indices listed in condition. 
+    For instance, X, labels = data_subset(condition, X, labels).
+    
     """
     K = len(args)
     if K == 0 :
