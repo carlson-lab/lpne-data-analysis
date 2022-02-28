@@ -62,7 +62,7 @@ end
 
 intervals = input('true or false: Are you using an INT_TIME folder to slice intervals? ');
 center = input('true or false: Are you using an CENTER_TIME folder to make centered windows? ');
-newFormatWindows(saveFile, intervals, center) %did the above so can be able to use intervals or centered windows here
+formatWindows(saveFile, intervals, center) %did the above so can be able to use intervals or centered windows here
 
 if trainFile
     train = load(trainFile, 'dataOpts');
@@ -79,4 +79,4 @@ end
 
 preprocessData(saveFile, dataOpts)
 
-newSaveFeatures(saveFile, featureOpts)
+saveFeatures(saveFile, featureOpts)
