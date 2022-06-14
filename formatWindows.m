@@ -1,4 +1,4 @@
-function formatWindows(saveFile, useIntervals)
+function formatWindows(saveFile, useIntervals, startOnly)
 % formatWindows
 %   Formats data and labels for use in lpne pipeline
 %   INPUTS
@@ -27,6 +27,9 @@ function formatWindows(saveFile, useIntervals)
 
 if nargin < 2
     useIntervals = false;
+    if nargin < 3
+        startOnly = false;
+    end
 end
 
 % get inputs
@@ -89,6 +92,7 @@ for k = 1:nSessions
     nameParts = split(filename,'_');
     mousename = nameParts{1};
     date = nameParts{2};
+    exp = nameParts{3};
     
     % for every channel, reshape into windows and add to main data
     % array
@@ -104,7 +108,11 @@ for k = 1:nSessions
                 I = length(intStart);
                 nWindows = sum(numIntWindows);
             else
-                nWindows = floor(length(thisChannel)/pointsPerWindow);
+                if startOnly
+                    nWindows = floor(startOnly*fs/pointsPerWindow);
+                else
+                    nWindows = floor(length(thisChannel)/pointsPerWindow);
+                end
             end
             
             totalWindows = nWindowsParsed + nWindows;
@@ -113,6 +121,7 @@ for k = 1:nSessions
             
             labels.allWindows.mouse(fileIdx) = {mousename};
             labels.allWindows.expDate(fileIdx) = {date};
+            labels.allWindows.exp(fileIdx) = {exp};
             labels.allWindows.time(fileIdx) = 1:nWindows;
             
             if useIntervals
