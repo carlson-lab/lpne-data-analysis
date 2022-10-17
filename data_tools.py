@@ -319,41 +319,50 @@ def scale_by_freq(x, f):
     x = x*f
     return x
 
-def feature_mat(labels, power, caus=None):
+def feature_mat(labels, power, caus=None, prenormalized=False):
     w, n_p = power.shape
     f = labels['f']
 
-    power = scale_by_freq(power, f)
-    p_scale = np.zeros(power.shape[1:])
-
-    if caus is not None:
-        caus = scale_by_freq(caus, f)
-
-        pair_id = [cl.split()[0] for cl in labels['causFeatures']]
-        pair_list, pair_idx = np.unique(pair_id, return_index=True)
-        pair_list = pair_list[np.argsort(pair_idx)]
-
-        c_scale = np.zeros(caus.shape[1:])
-
-    # for each region, scale corresponding power/causalities
-    for a, area in enumerate(labels['area']):
-        this_rms = np.sqrt(np.mean(power[:,a]**2))
-        power[:,a] /= this_rms
-        p_scale[a] = f/this_rms
+    #import pdb; pdb.set_trace()
+    if not prenormalized:
+        power = scale_by_freq(power, f)
+        p_scale = np.zeros(power.shape[1:])
 
         if caus is not None:
-            for p, pair in enumerate(pair_list):
-                if pair.split('->')[1] == area:
-                    caus[:,p] /= this_rms
-                    c_scale[p] = f/this_rms
+            caus = scale_by_freq(caus, f)
 
-    power = power.reshape((w,-1))
-    p_scale = p_scale.reshape((-1))
+            pair_id = [cl.split()[0] for cl in labels['causFeatures']]
+            pair_list, pair_idx = np.unique(pair_id, return_index=True)
+            pair_list = pair_list[np.argsort(pair_idx)]
+
+            c_scale = np.zeros(caus.shape[1:])
+
+        # for each region, scale corresponding power/causalities
+        for a, area in enumerate(labels['area']):
+            this_rms = np.sqrt(np.mean(power[:,a]**2))
+            power[:,a] /= this_rms
+            p_scale[a] = f/this_rms
+
+            if caus is not None:
+                for p, pair in enumerate(pair_list):
+                    if pair.split('->')[1] == area:
+                        caus[:,p] /= this_rms
+                        c_scale[p] = f/this_rms
+
+        power = power.reshape((w,-1))
+        p_scale = p_scale.reshape((-1))
+        if caus is not None:
+            c_scale = c_scale.reshape((-1))
+    else:
+        p_scale = np.ones((n_p))
 
     if caus is not None:
         caus = caus.reshape((w,-1))
-        c_scale = c_scale.reshape((-1))
         n_c = caus.shape[1]
+
+        if prenormalized:
+            c_scale = np.ones((n_c))
+
         feat_weights = (n_p+n_c) / np.asarray([n_p, n_c])
         X, feat_weights = get_X(feat_weights, (power, caus), return_weights=True)
         feat_weights = np.concatenate((feat_weights[0]*p_scale, feat_weights[1]*c_scale))
