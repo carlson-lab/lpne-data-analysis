@@ -60,7 +60,9 @@ if nargin < 4
     end
 end
 
-formatWindows(saveFile)
+intervals = input('true or false: Are you using an INT_TIME folder to slice intervals? ');
+center = input('true or false: Are you using an CENTER_TIME folder to make centered windows? ');
+formatWindows(saveFile, intervals, center) %did the above so can be able to use intervals or centered windows here
 
 if trainFile
     train = load(trainFile, 'dataOpts');
