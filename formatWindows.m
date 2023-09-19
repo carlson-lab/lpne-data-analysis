@@ -1,23 +1,20 @@
-function formatWindows(saveFile, useIntervals, projectFolder, chanFile, fs, windowLength)
+function formatWindows(saveFile, projectFolder, chanFile, fs, windowLength)
 
 % Fill in default arguments and get input from the user.
 if nargin < 2
-    useIntervals = false;
-end
-if nargin < 3
     projectFolder = uigetdir('.', 'Select folder containing Data & CHANS subfolders');
     dummy = input(['Make sure areas in channel info file match other ' ...
         'datasets you plan to combine with this one!!\n', 'ENTER to continue']);
 end
-if nargin < 4
+if nargin < 3
     [chanFile, chanPath] = uigetfile([projectFolder '/*.xls*'], 'Select channel info file');
     chanFile = [chanPath chanFile];
 end
-if nargin < 5
+if nargin < 4
     inputs = inputdlg({'Enter sampling rate (Hz):'});
     fs = str2double(inputs{1}); % sampling rate, Hz
 end
-if nargin < 6
+if nargin < 5
     inputs = inputdlg({'Enter window length (s)'});
     windowLength = str2double(inputs{1}); % length of one window (s)
 end
@@ -36,9 +33,6 @@ chansFolder = [projectFolder '/CHANS/'];
 dataFolder = [projectFolder '/Data/'];
 dataList = dir([dataFolder '*_LFP.mat']);
 nSessions = length(dataList);
-if useIntervals
-    intFolder = [projectFolder '/INT_TIME/'];
-end
 
 % Initialize variables to be used in loops below
 dataCells = {};
@@ -62,7 +56,7 @@ for k = 1:nSessions
     chanFile = [chansFolder regexprep(filename, 'LFP.mat', 'CHANS.mat')];
     load(chanFile, 'CHANNAMES', 'CHANACTIVE')
 
-    % Load the frame file for the current LFP file, ALL OF THIS IS NEW
+    % Load the frame file for the current LFP file
     frameFile = [projectFolder '/Frame/' regexprep(thisFile.name, 'LFP.mat', 'FRAME.mat')];
     if exist(frameFile, 'file')
         load(frameFile, 'frames')
@@ -70,28 +64,27 @@ for k = 1:nSessions
         error('Frame file not found for %s', thisFile.name);
     end
 
-    % Calculate the window boundaries for each frame, STILL NEW
+    % Calculate the window boundaries for each frame
     intStartBefore = frames - windowLength * fs;
     intEndBefore = frames - 1;
     intStartAfter = frames + 1;
     intEndAfter = frames + windowLength * fs;
     
     % Remove any negative intStart values and corresponding intEnd values,
-    % STILL NEW
     invalidIndices = intStartBefore <= 0;
     intStartBefore(invalidIndices) = [];
     intEndBefore(invalidIndices) = [];
     intStartAfter(invalidIndices) = [];
     intEndAfter(invalidIndices) = [];
 
-    nWindows = 2 * length(intStartBefore); % NEW
+    nWindows = 2 * length(intStartBefore);
 
     % Extract mouse name and experiment date from filename
     nameParts = split(thisFile.name,'_');
     mousename = nameParts{1};
     date = nameParts{2};
 
-    % Create data structure for this file's windows, THIS IS NEW
+    % Create data structure for this file's windows
     thisData = NaN(pointsPerWindow, length(channames), nWindows);
 
     % For every channel, reshape into windows and add to main data array
@@ -113,7 +106,7 @@ for k = 1:nSessions
         for i = 1:nWindows/2
             thisIntervalBefore = thisChannel(intStartBefore(i):intEndBefore(i));
             thisIntervalAfter = thisChannel(intStartAfter(i):intEndAfter(i));
-            
+
             if length(thisIntervalBefore) == pointsPerWindow
                 usableDataBefore(:, i) = thisIntervalBefore;
             else
@@ -129,9 +122,6 @@ for k = 1:nSessions
             end
         end
         
-        fprintf('Size of usableDataBefore: %d %d\n', size(usableDataBefore,1), size(usableDataBefore,2));
-        fprintf('Size of thisData: %d %d %d\n', size(thisData,1), size(thisData,2), size(thisData,3));
-
         thisData(:, activeIdx, 1:2:end) = usableDataBefore;
         thisData(:, activeIdx, 2:2:end) = usableDataAfter;
         
