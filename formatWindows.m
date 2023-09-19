@@ -1,5 +1,12 @@
 function formatWindows(saveFile, projectFolder, chanFile, fs, windowLength)
 
+% In addition to the standard Data and CHANS folders, we also need...
+%... a Frame folder, which contains files ending in _FRAME.mat, with...
+%... the same naming scheme as the Data and CHANS files.
+% The FRAME files should contain an nx1 double of the frames you..
+%... want to use to create the windows to the either side of.
+
+
 % Fill in default arguments and get input from the user.
 if nargin < 2
     projectFolder = uigetdir('.', 'Select folder containing Data & CHANS subfolders');
