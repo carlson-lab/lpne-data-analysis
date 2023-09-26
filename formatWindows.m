@@ -25,6 +25,16 @@ if nargin < 5
     inputs = inputdlg({'Enter window length (s)'});
     windowLength = str2double(inputs{1}); % length of one window (s)
 end
+if nargin < 6
+    inputs = inputdlg({'Enter the number of windows to create before each frame:'});
+    numWindowsBefore = str2double(inputs{1});
+end
+
+if nargin < 7
+    inputs = inputdlg({'Enter the number of windows to create after each frame:'});
+    numWindowsAfter = str2double(inputs{1});
+end
+
 pointsPerWindow = fs*windowLength;
 
 % Load channel info (and strip of unwanted ' symbols)
@@ -46,7 +56,7 @@ dataCells = {};
 tic
 nWindowsParsed = 0;
 
-totalWindows = 0; %this line was added and is not in the original
+nWindows = numWindowsBefore + numWindowsAfter; %this line was added and is not in the original
 
 for k = 1:nSessions
     thisFile = dataList(k);
@@ -71,68 +81,68 @@ for k = 1:nSessions
         error('Frame file not found for %s', thisFile.name);
     end
 
-    % Calculate the window boundaries for each frame
-    intStartBefore = frames - windowLength * fs;
-    intEndBefore = frames - 1;
-    intStartAfter = frames + 1;
-    intEndAfter = frames + windowLength * fs;
-    
-    % Remove any negative intStart values and corresponding intEnd values,
-    invalidIndices = intStartBefore <= 0;
-    intStartBefore(invalidIndices) = [];
-    intEndBefore(invalidIndices) = [];
-    intStartAfter(invalidIndices) = [];
-    intEndAfter(invalidIndices) = [];
-
-    nWindows = 2 * length(intStartBefore);
-
     % Extract mouse name and experiment date from filename
     nameParts = split(thisFile.name,'_');
     mousename = nameParts{1};
     date = nameParts{2};
 
     % Create data structure for this file's windows
-    thisData = NaN(pointsPerWindow, length(channames), nWindows);
-
+    thisData = NaN(pointsPerWindow, length(channames), nWindows * length(frames));
+    
     % For every channel, reshape into windows and add to main data array
     channel = who('-regexp','_\d\d');
     C = length(channel);
     for c = 1:C
         channelIdx = strcmp(labels.channel, channel{c});
         thisChannel = eval(channel{c});
-
+        
         % Skip inactive or unused channels, leaving them as NaNs
         activeIdx = strcmp(channames, channel{c});
         if sum(channelIdx) ~= 1
             continue;
         end
-
-        usableDataBefore = zeros(pointsPerWindow, nWindows/2);
-        usableDataAfter = zeros(pointsPerWindow, nWindows/2);
-
-        for i = 1:nWindows/2
-            thisIntervalBefore = thisChannel(intStartBefore(i):intEndBefore(i));
-            thisIntervalAfter = thisChannel(intStartAfter(i):intEndAfter(i));
-
-            if length(thisIntervalBefore) == pointsPerWindow
-                usableDataBefore(:, i) = thisIntervalBefore;
-            else
-                fprintf('Unexpected length for before-window at %d: Found %d, expected %d\n', ...
-                    i, length(thisIntervalBefore), pointsPerWindow);
+        
+        totalWindows = numWindowsBefore + numWindowsAfter + 1;  % +1 for the frame itself
+        
+        for f = 1:length(frames)
+            frameTime = frames(f);
+            windowCounter = 0;
+            
+            for i = 1:numWindowsBefore
+                intStart = frameTime - (numWindowsBefore - i + 1) * windowLength * fs;
+                intEnd = frameTime - (numWindowsBefore - i) * windowLength * fs - 1;
+    
+                thisInterval = [];  % Initialize to an empty array
+                
+                if intStart > 0 && intEnd <= length(thisChannel)
+                    thisInterval = thisChannel(intStart:intEnd);
+                else
+                    % Either skip this window or print a warning message.
+                    fprintf('Skipping window for frame %d: intStart=%d, intEnd=%d\n', f, intStart, intEnd);
+                end
+    
+                windowCounter = windowCounter + 1;
+                if length(thisInterval) == pointsPerWindow
+                    thisData(:, activeIdx, (f-1)*totalWindows + windowCounter) = thisInterval;
+                end
             end
             
-            if length(thisIntervalAfter) == pointsPerWindow
-                usableDataAfter(:, i) = thisIntervalAfter;
-            else
-                fprintf('Unexpected length for after-window at %d: Found %d, expected %d\n', ...
-                    i, length(thisIntervalAfter), pointsPerWindow);
+            for j = 1:numWindowsAfter
+                intStart = frameTime + (j - 1) * windowLength * fs + 1;
+                intEnd = frameTime + j * windowLength * fs;
+    
+                thisInterval = thisChannel(intStart:intEnd);
+                
+                windowCounter = windowCounter + 1;
+                if length(thisInterval) == pointsPerWindow
+                    thisData(:, activeIdx, (f-1)*totalWindows + windowCounter) = thisInterval;
+                end
             end
         end
-        
-        thisData(:, activeIdx, 1:2:end) = usableDataBefore;
-        thisData(:, activeIdx, 2:2:end) = usableDataAfter;
-        
     end
+
+    
+    
 
     % Update the labels
     totalWindows = nWindowsParsed + nWindows;
