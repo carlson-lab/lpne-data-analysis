@@ -88,7 +88,7 @@ for k = 1:nSessions
 
     % Create data structure for this file's windows
     thisData = NaN(pointsPerWindow, length(channames), nWindows * length(frames));
-    
+    disp(size(thisData))
     % For every channel, reshape into windows and add to main data array
     channel = who('-regexp','_\d\d');
     C = length(channel);
@@ -102,7 +102,7 @@ for k = 1:nSessions
             continue;
         end
         
-        totalWindows = numWindowsBefore + numWindowsAfter + 1;  % +1 for the frame itself
+        totalWindows = numWindowsBefore + numWindowsAfter;
         
         for f = 1:length(frames)
             frameTime = frames(f);
