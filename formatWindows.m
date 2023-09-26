@@ -45,6 +45,20 @@ chanareas = chanData(:,2);
 labels.channel = channames;
 labels.channelArea = chanareas;
 
+% Initialize labels as an empty struct if it does not already exist
+if ~isfield(labels, 'allWindows')
+    labels.allWindows = struct();
+end
+
+% Initialize labels.allWindows.frame as an empty array if it does not already exist
+if ~isfield(labels.allWindows, 'frame')
+    labels.allWindows.frame = [];
+    labels.allWindows.mouse = [];
+    labels.allWindows.expDate = [];
+    labels.allWindows.time = [];
+end
+
+
 % For each recording file, load and slice data
 chansFolder = [projectFolder '/CHANS/'];
 dataFolder = [projectFolder '/Data/'];
@@ -85,7 +99,7 @@ for k = 1:nSessions
     nameParts = split(thisFile.name,'_');
     mousename = nameParts{1};
     date = nameParts{2};
-
+    timeVar = 0;
     % Create data structure for this file's windows
     thisData = NaN(pointsPerWindow, length(channames), nWindows * length(frames));
     disp(size(thisData))
@@ -106,8 +120,8 @@ for k = 1:nSessions
         
         for f = 1:length(frames)
             frameTime = frames(f);
-            windowCounter = 0;
             
+            windowCounter = 0;
             for i = 1:numWindowsBefore
                 intStart = frameTime - (numWindowsBefore - i + 1) * windowLength * fs;
                 intEnd = frameTime - (numWindowsBefore - i) * windowLength * fs - 1;
@@ -115,13 +129,22 @@ for k = 1:nSessions
                 thisInterval = [];  % Initialize to an empty array
                 
                 if intStart > 0 && intEnd <= length(thisChannel)
+                    fprintf('Doing before window for frame %d: intStart=%d, intEnd=%d\n', f, intStart, intEnd);
                     thisInterval = thisChannel(intStart:intEnd);
+                    windowCounter = windowCounter + 1;
+                    if c == 1
+                        labels.allWindows.frame = [labels.allWindows.frame; frameTime];
+                        labels.allWindows.mouse = [labels.allWindows.mouse; mousename];
+                        labels.allWindows.expDate = [labels.allWindows.expDate; date];
+                        timeVar = timeVar + 1; 
+                        labels.allWindows.time = [labels.allWindows.time; timeVar];
+
+                    end
                 else
                     % Either skip this window or print a warning message.
-                    fprintf('Skipping window for frame %d: intStart=%d, intEnd=%d\n', f, intStart, intEnd);
+                    fprintf('Skipping before window for frame %d: intStart=%d, intEnd=%d\n', f, intStart, intEnd);
                 end
-    
-                windowCounter = windowCounter + 1;
+
                 if length(thisInterval) == pointsPerWindow
                     thisData(:, activeIdx, (f-1)*totalWindows + windowCounter) = thisInterval;
                 end
@@ -131,9 +154,25 @@ for k = 1:nSessions
                 intStart = frameTime + (j - 1) * windowLength * fs + 1;
                 intEnd = frameTime + j * windowLength * fs;
     
-                thisInterval = thisChannel(intStart:intEnd);
+                thisInterval = [];  % Initialize to an empty array
                 
-                windowCounter = windowCounter + 1;
+                if intStart > 0 && intEnd <= length(thisChannel)
+                    fprintf('Doing after window for frame %d: intStart=%d, intEnd=%d\n', f, intStart, intEnd);
+                    thisInterval = thisChannel(intStart:intEnd);
+                    windowCounter = windowCounter + 1;
+                    if c == 1 
+                        labels.allWindows.frame = [labels.allWindows.frame; frameTime];
+                        labels.allWindows.mouse = [labels.allWindows.mouse; cellstr(mousename)];
+                        labels.allWindows.expDate = [labels.allWindows.expDate; cellstr(date)];
+                        timeVar = timeVar + 1; 
+                        labels.allWindows.time = [labels.allWindows.time; timeVar];
+                    end
+                else
+                    % Either skip this window or print a warning message.
+                    fprintf('Skipping after window for frame %d: intStart=%d, intEnd=%d\n', f, intStart, intEnd);
+                end
+                
+
                 if length(thisInterval) == pointsPerWindow
                     thisData(:, activeIdx, (f-1)*totalWindows + windowCounter) = thisInterval;
                 end
@@ -141,14 +180,14 @@ for k = 1:nSessions
         end
     end
 
-    % Update the labels
-    totalWindows = nWindowsParsed + nWindows;
-    fileIdx = nWindowsParsed+1:totalWindows;
-    labels.allWindows.mouse(fileIdx) = repmat({mousename}, nWindows, 1);
-    labels.allWindows.expDate(fileIdx) = repmat({date}, nWindows, 1);
-    labels.allWindows.time(fileIdx) = 1:nWindows;
 
-    nWindowsParsed = totalWindows;
+
+    % Find the indices of zeros in labels.allWindows.frame
+    zeroIndices = find(labels.allWindows.frame == 0);
+
+    % Remove those indices
+    labels.allWindows.frame(zeroIndices) = [];
+
     % Find slices (along 3rd dimension) where all values are NaN
     allNanSlices = all(all(isnan(thisData), 1), 2);
     
