@@ -141,9 +141,6 @@ for k = 1:nSessions
         end
     end
 
-    
-    
-
     % Update the labels
     totalWindows = nWindowsParsed + nWindows;
     fileIdx = nWindowsParsed+1:totalWindows;
@@ -152,6 +149,11 @@ for k = 1:nSessions
     labels.allWindows.time(fileIdx) = 1:nWindows;
 
     nWindowsParsed = totalWindows;
+    % Find slices (along 3rd dimension) where all values are NaN
+    allNanSlices = all(all(isnan(thisData), 1), 2);
+    
+    % Remove those slices
+    thisData(:, :, allNanSlices) = [];
     dataCells = cat(3, dataCells, {thisData});
 
     fprintf('Day %s of %s loaded. %.1f minutes elapsed\n', date, mousename, toc/60);
