@@ -58,7 +58,6 @@ if ~isfield(labels.allWindows, 'frame')
     labels.allWindows.time = [];
 end
 
-
 % For each recording file, load and slice data
 chansFolder = [projectFolder '/CHANS/'];
 dataFolder = [projectFolder '/Data/'];
@@ -134,8 +133,8 @@ for k = 1:nSessions
                     windowCounter = windowCounter + 1;
                     if c == 1
                         labels.allWindows.frame = [labels.allWindows.frame; frameTime];
-                        labels.allWindows.mouse = [labels.allWindows.mouse; mousename];
-                        labels.allWindows.expDate = [labels.allWindows.expDate; date];
+                        labels.allWindows.mouse = [labels.allWindows.mouse; cellstr(mousename)];
+                        labels.allWindows.expDate = [labels.allWindows.expDate; cellstr(date)];
                         timeVar = timeVar + 1; 
                         labels.allWindows.time = [labels.allWindows.time; timeVar];
 
