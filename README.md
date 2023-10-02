@@ -1,6 +1,27 @@
-# lpne-data-analysis
+# lpne-data-analysis, centered_windows_functionality branch
 
-Generic pre-processing and analysis code for LPNE data science. Takes in data from individual recordings, preprocesses and extracts features, then creates predictive models for tasks and tests performance. Main files are formatWindows.m, preprocessData.m, saveFeatures.m, data_tools.py and validation_tools.py.
+If a 'true' boolean is passed to the input useCenteredWindows, then you will need a 'CENTER_TIME' folder in the project folder containing files with a list of timestamps to create windows around. The files are named the same as the LFP files, but end in CENTER.mat instead of LFP.mat. Each center file contains three variables:
+
+1. T, which contains the timestamps
+2. trial, what trial is each timestamp occuring in
+3. percProgTraveledPath, the percent progress through the task the mouse is at that timestamp
+
+If 2 and 3 do not mean anything to you, you can make dummy variables of them.
+
+A special note for formatWindows is that it asks "Enter the largest window length used in your analysis (s)". This comes from that this branch can make multiple lengths of features (i.e. 1 second power features and 2 second coherence features). So if your features are 1 second, 2 seconds, and 2 seconds, you would input 2 to this. You will specify how long each feature is later.
+
+When using saveFeatures, we will have a struct called 'options' contain information about what length each feature is. The field in options should be called featureSizes.
+
+featureSizes: (Optional) Requires featureList to use. Cell array of doubles indicating the window size of each feature in featureList.
+The doubles should be in the same order as the features specified in featureList. Only use if centered windows earlier. If you don't know what this means, don't include this.
+
+featureSizes must be used if windows are centered
+
+
+
+
+
+
 
 ### A detailed description of how to use the full pipeline with control over individual steps is given in *NMFDemo.ipynb*
 
