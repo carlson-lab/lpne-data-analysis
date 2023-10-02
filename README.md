@@ -1,6 +1,10 @@
-# lpne-data-analysis
+# lpne-data-analysis, frame_windows branch
 
 Generic pre-processing and analysis code for LPNE data science. Takes in data from individual recordings, preprocesses and extracts features, then creates predictive models for tasks and tests performance. Main files are formatWindows.m, preprocessData.m, saveFeatures.m, data_tools.py and validation_tools.py.
+
+The frame windows branch allows one to slice the LFPs into windows to the sides of specified timepoint. You can choose the amount of windows that you want to create to the either side of each timepoint. The way to input the timepoints for slicing is to make .mat files in the standard naming scheme for each LFP file, but instead of the file ending in _LFP.mat, it will end in _FRAME.mat. The contents of this file should be a #_timepoints by 1 double that contain all of the timepoints. The variable needs to be named 'frames' in order to be read in. This branch automatically formats windows in this manner; you do not need to specify that you want to do this. You need to use another branch if you don't want to slice windows in this way. Preprocessing the windows and making the features are unchanged.
+
+
 
 ### A detailed description of how to use the full pipeline with control over individual steps is given in *NMFDemo.ipynb*
 
