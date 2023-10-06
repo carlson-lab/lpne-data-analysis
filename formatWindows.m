@@ -114,13 +114,20 @@ for k = 1:nSessions
         intEnd = (intStart -1) + numIntWindows*pointsPerWindow;
     end
 
+    % check to make sure a valid center file exists. Some contained nans
+    % and were omitted
+    centerFile = [centerFolder regexprep(filename,'LFP.mat','CENTER.mat')];
+    if isfile(centerFile)
+        a = 1;
+    else
+        continue
+    end
+
     if centeredWindows
         % load timsetamp, trial number, and percent progress
         centerFile = [centerFolder regexprep(filename, 'LFP.mat', 'CENTER.mat')];
         load(centerFile)
         timestamps = T;
-        trialNumber = trial;
-        progress = percProgTraveledPath;
     end
     
 
