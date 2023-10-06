@@ -56,6 +56,7 @@ if ~isfield(labels.allWindows, 'frame')
     labels.allWindows.mouse = [];
     labels.allWindows.expDate = [];
     labels.allWindows.time = [];
+    labels.allWindows.eventIndicator = [];
 end
 
 % For each recording file, load and slice data
@@ -132,11 +133,16 @@ for k = 1:nSessions
                     thisInterval = thisChannel(intStart:intEnd);
                     windowCounter = windowCounter + 1;
                     if c == 1
-                        labels.allWindows.frame = [labels.allWindows.frame; frameTime];
+                        labels.allWindows.frame = [labels.allWindows.frame; intStart];
                         labels.allWindows.mouse = [labels.allWindows.mouse; cellstr(mousename)];
                         labels.allWindows.expDate = [labels.allWindows.expDate; cellstr(date)];
                         timeVar = timeVar + 1; 
                         labels.allWindows.time = [labels.allWindows.time; timeVar];
+                        if intStart == frameTime + 1
+                            labels.allWindows.eventIndicator = [labels.allWindows.eventIndicator; 1];
+                        else
+                            labels.allWindows.eventIndicator = [labels.allWindows.eventIndicator; 0];
+                        end
 
                     end
                 else
@@ -160,11 +166,17 @@ for k = 1:nSessions
                     thisInterval = thisChannel(intStart:intEnd);
                     windowCounter = windowCounter + 1;
                     if c == 1 
-                        labels.allWindows.frame = [labels.allWindows.frame; frameTime];
+                        labels.allWindows.frame = [labels.allWindows.frame; intStart];
                         labels.allWindows.mouse = [labels.allWindows.mouse; cellstr(mousename)];
                         labels.allWindows.expDate = [labels.allWindows.expDate; cellstr(date)];
                         timeVar = timeVar + 1; 
                         labels.allWindows.time = [labels.allWindows.time; timeVar];
+
+                        if intStart == frameTime + 1
+                            labels.allWindows.eventIndicator = [labels.allWindows.eventIndicator; 1];
+                        else
+                            labels.allWindows.eventIndicator = [labels.allWindows.eventIndicator; 0];
+                        end
                     end
                 else
                     % Either skip this window or print a warning message.
