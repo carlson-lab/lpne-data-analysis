@@ -62,6 +62,9 @@ if nargin < 7
     inputs = inputdlg({'Enter the largest window length used in your analysis (s)'});
     windowLength = str2double(inputs{1}); % length of one window (s)
 end
+if nargin < 8
+    centerFolder = [];
+end
 pointsPerWindow = fs*windowLength; %the amount of millisecond timepoints in one window
 
 % load channel info (and strip of unwanted ' symbols)
@@ -80,11 +83,16 @@ dataList = dir([dataFolder '*_LFP.mat']);
 if useIntervals
     intFolder = [projectFolder '/INT_TIME/'];
 end
-%if centeredWindows
-%    centerFolder = [projectFolder '/CENTER_TIME/']; %get folder that contains the information about the centered windows
-%end
-%centerList = dir([projectFolder '/CENTER_TIME/*.mat']);
-centerList = dir(centerFolder);
+if centeredWindows
+    centerList = dir(centerFolder);
+end
+if ~isempty(centerFolder) && ~centeredWindows
+    error('You are specifying a CENTER_TIME folder, but centeredWindows is set to false.');
+end
+if isempty(centerFolder) && centeredWindows
+    error('You have set centeredWindows to true, but have not specified a CENTER_TIME folder.');
+end
+
 nSessions = length(centerList);
 
 % initialize variables to be used in loops below
